@@ -1,14 +1,15 @@
 import { lang, setLang, t } from '../i18n';
 import type { ProjectSummary } from '../model/types';
-import { installAvailable, promptInstall, isIos, isStandalone, onInstallChange } from '../pwa';
+import { installHint, onInstallChange } from '../pwa';
 import type { ProjectRepo } from '../storage/repo';
 import { FormatError } from '../storage/serialize';
 import { projectFromZip, projectToZip } from '../storage/zip';
 import { clear, downloadBlob, h, pickFile, safeFileName } from '../ui/dom';
-import { confirmDialog, openDialog, promptDialog } from '../ui/dialog';
+import { confirmDialog, promptDialog } from '../ui/dialog';
 import { icon } from '../ui/icons';
 import { closePopover, popover } from '../ui/popover';
 import { toast } from '../ui/toast';
+import { InstallBanner, startInstall } from './installBanner';
 import { newProjectDialog } from './newProject';
 
 const REPO_URL = 'https://github.com/mifarosa/karekare';
@@ -20,6 +21,7 @@ export class HomeView {
   private installBtn: HTMLButtonElement;
   private urls: string[] = [];
   private offInstall: () => void;
+  private banner = new InstallBanner(() => this.updateInstall());
 
   constructor(
     private repo: ProjectRepo,
@@ -27,7 +29,7 @@ export class HomeView {
     private onLangChange: () => void,
   ) {
     this.grid = h('div', { class: 'project-grid' });
-    this.installBtn = h('button', { class: 'btn', onclick: () => this.install() }, icon('install', 18), t('installApp'));
+    this.installBtn = h('button', { class: 'btn', onclick: () => void startInstall() }, icon('install', 18), t('installApp'));
     this.el = h(
       'div',
       { class: 'home' },
@@ -59,6 +61,7 @@ export class HomeView {
         ),
       ),
       repo.persistent ? null : h('div', { class: 'banner' }, t('noStorageWarning')),
+      this.banner.el,
       h(
         'div',
         { class: 'home-actions' },
@@ -80,19 +83,8 @@ export class HomeView {
   }
 
   private updateInstall(): void {
-    this.installBtn.hidden = isStandalone() || (!installAvailable() && !isIos());
-  }
-
-  private async install(): Promise<void> {
-    if (installAvailable()) {
-      await promptInstall();
-      return;
-    }
-    openDialog({
-      title: t('installApp'),
-      body: h('p', null, t('installIos')),
-      actions: [{ label: t('done'), kind: 'primary' }],
-    });
+    // The banner already offers installing; the header button is the fallback after "Later".
+    if (this.installBtn) this.installBtn.hidden = installHint() === null || this.banner.visible;
   }
 
   async refresh(): Promise<void> {
@@ -245,6 +237,7 @@ export class HomeView {
 
   dispose(): void {
     this.offInstall();
+    this.banner.dispose();
     for (const u of this.urls) URL.revokeObjectURL(u);
     this.el.remove();
   }

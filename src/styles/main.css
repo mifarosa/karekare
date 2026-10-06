@@ -46,6 +46,11 @@
   box-sizing: border-box;
 }
 
+/* Component display rules must not override the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -683,6 +688,115 @@ a {
   background: #fff3c4;
   color: #5c4500;
   line-height: 1.4;
+}
+
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 2px solid var(--accent-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.install-banner-warn {
+  background: #fff3c4;
+  border-color: #ffd866;
+  color: #4a3800;
+}
+
+.install-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  flex: none;
+}
+
+.install-banner-warn .install-banner-icon {
+  background: #ffe08a;
+  color: #8a5a00;
+}
+
+.install-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+  line-height: 1.4;
+}
+
+.install-banner-text strong {
+  font-size: 16px;
+}
+
+.install-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.install-banner-warn .btn:not(.btn-primary) {
+  background: transparent;
+  border-color: #e6c24a;
+  color: inherit;
+}
+
+.install-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.install-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  line-height: 1.4;
+}
+
+.install-step-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  flex: none;
+}
+
+.install-step-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--panel);
+  color: #0a7aff;
+  flex: none;
+}
+
+.install-note {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff3c4;
+  color: #4a3800;
+  font-size: 14px;
 }
 
 .home-actions {

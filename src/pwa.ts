@@ -59,3 +59,14 @@ export function isIos(): boolean {
   const ua = navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
 }
+
+/**
+ * What to suggest about installing: iOS needs manual "Add to Home Screen"
+ * (and Safari may otherwise clear site data), others may offer a prompt.
+ */
+export function installHint(): 'ios' | 'prompt' | null {
+  if (isStandalone()) return null;
+  if (isIos()) return 'ios';
+  if (installAvailable()) return 'prompt';
+  return null;
+}

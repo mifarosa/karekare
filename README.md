@@ -43,7 +43,7 @@
 | Safari (iPadOS / macOS 16.4+) | ✅ | ✅ | ✅ (sesin videoya eklenmesi sürüme bağlı) |
 | Firefox | ✅ | ✅ | sürüme göre MP4, WebM veya yok |
 
-> iPad’de Safari, ana ekrana eklenmemiş sitelerin verisini uzun süre kullanılmazsa silebilir. Kalıcı kullanım için **Paylaş → Ana Ekrana Ekle** ile kurun ve önemli projeleri arada bir **Proje dosyasını kaydet (.zip)** ile yedekleyin.
+> iPad’de Safari, ana ekrana eklenmemiş sitelerin verisini uzun süre kullanılmazsa silebilir. Uygulama bu yüzden iPad/iPhone’da ana sayfada adım adım bir **“Ana ekrana ekle”** uyarısı gösterir (“Sonra” denirse 3 gün sonra tekrar çıkar, ana ekrandan açılınca hiç çıkmaz). Ana ekrandaki uygulama Safari’den ayrı depolama kullanır; Safari’de yapılmış animasyonlar **Proje dosyasını kaydet (.zip)** ile taşınabilir.
 
 ## Geliştirme
 
@@ -61,6 +61,9 @@ Tarayıcı testleri (Playwright ile gerçek arayüz üzerinden çizim, dokunma h
 npm run build && npm run preview &
 node scripts/smoke.mjs          # çizim, kova, katman, geri al, oynat, dışa aktar, yeniden aç
 node scripts/smoke-input.mjs    # kalem basıncı, avuç reddi, sıkıştır-yakınlaştır, 2/3 parmak, ses
+node scripts/smoke-flows.mjs    # kare sürükle-bırak, katman işlemleri, .zip ile taşıma
+node scripts/smoke-install.mjs  # iPad’de “ana ekrana ekle” uyarısı
+node scripts/smoke-offline.mjs  # internetsiz açılış ve kayıt
 node scripts/demo.mjs           # docs/screenshot.png ve docs/demo.gif üretir
 ```
 
