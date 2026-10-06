@@ -930,11 +930,50 @@ a {
   margin-top: auto;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   color: var(--muted);
   font-size: 13px;
   padding-top: 20px;
+}
+
+.home-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.coffee-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #ffdd00;
+  color: #1f1600;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+@media (hover: hover) {
+  .coffee-btn:hover {
+    background: #ffd000;
+  }
+}
+
+.help-support {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .size-cards {

@@ -6,6 +6,7 @@ import { h, pickFile } from '../ui/dom';
 import { openDialog } from '../ui/dialog';
 import { icon } from '../ui/icons';
 import { closePopover, popover } from '../ui/popover';
+import { coffeeButton } from '../ui/coffee';
 import { toast } from '../ui/toast';
 import type { Editor } from './editor';
 import { segmented, slider, toggle } from './toolbar';
@@ -131,6 +132,7 @@ export function openHelpDialog(): void {
       h('p', null, t('helpIntro')),
       h('table', { class: 'help-table' }, h('tbody', null, ...rows.map(([a, b]) => h('tr', null, h('td', null, a), h('td', null, b))))),
       h('p', { class: 'muted small' }, t('helpSaving')),
+      h('div', { class: 'help-support' }, h('span', { class: 'muted small' }, t('supportText')), coffeeButton()),
     ],
     actions: [{ label: t('done'), kind: 'primary' }],
   });

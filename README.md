@@ -3,6 +3,8 @@
 **Tablet ve kalemle çalışan, reklamsız, filigransız, internetsiz ve açık kaynak kare kare animasyon uygulaması.**
 *A free, offline, open-source frame-by-frame animation app for tablets and pens — no ads, no watermark, no layer limits.*
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mifarosa)
+
 ![Kare Kare editörü](docs/screenshot.png)
 
 ![Kare Kare ile yapılmış zıplayan top](docs/demo.gif)
@@ -96,6 +98,10 @@ src/
 ## Gizlilik
 
 Kare Kare hiçbir sunucuya veri göndermez, hesap gerektirmez, reklam veya izleme içermez.
+
+## Destek
+
+Kare Kare ücretsiz ve reklamsız kalacak. Beğendiysen [bana bir kahve ısmarlayabilirsin](https://buymeacoffee.com/mifarosa) ☕
 
 ## Lisans
 

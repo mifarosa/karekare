@@ -1,9 +1,11 @@
 import { lang, setLang, t } from '../i18n';
+import { REPO_URL } from '../links';
 import type { ProjectSummary } from '../model/types';
 import { installHint, onInstallChange } from '../pwa';
 import type { ProjectRepo } from '../storage/repo';
 import { FormatError } from '../storage/serialize';
 import { projectFromZip, projectToZip } from '../storage/zip';
+import { coffeeButton } from '../ui/coffee';
 import { clear, downloadBlob, h, pickFile, safeFileName } from '../ui/dom';
 import { confirmDialog, promptDialog } from '../ui/dialog';
 import { icon } from '../ui/icons';
@@ -11,8 +13,6 @@ import { closePopover, popover } from '../ui/popover';
 import { toast } from '../ui/toast';
 import { InstallBanner, startInstall } from './installBanner';
 import { newProjectDialog } from './newProject';
-
-const REPO_URL = 'https://github.com/mifarosa/karekare';
 
 /** Project gallery: create, open, import and manage animations. */
 export class HomeView {
@@ -74,7 +74,12 @@ export class HomeView {
         'footer',
         { class: 'home-footer' },
         h('span', null, t('footerBadges')),
-        h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, t('sourceCode')),
+        h(
+          'div',
+          { class: 'home-footer-links' },
+          coffeeButton(),
+          h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, t('sourceCode')),
+        ),
       ),
     );
     this.offInstall = onInstallChange(() => this.updateInstall());
