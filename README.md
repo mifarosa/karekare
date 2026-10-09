@@ -17,6 +17,8 @@
 - **Boya kovası**: hassasiyet ayarı, “çizgi altına taşır” seçeneği (kenarlarda boşluk kalmaz) ve “tüm katmanlara bak” ile ayrı katmandaki çizgilere göre boyama
 - **Sınırsız katman ve kare**: gizle/göster, kilitle, saydamlık, çoğalt, sırala
 - **Onion skin**: önceki/sonraki kareler kırmızı/yeşil soluk görünür
+- **Yazı ve fotoğraf ekleme**: yazıyı (3 yazı tipi, kenarlık) veya fotoğrafı sürükleyerek taşı, köşeden ya da iki parmakla büyüt/küçült, üstteki tutamaçla döndür, sonra “Yerleştir”
+- **Fotoğrafı yeni kare olarak ekleme**: bir ya da birden fazla fotoğraf seç, her biri ayrı kare olur (ekranı doldur veya tamamını göster), stop-motion için ideal
 - **Zaman çizelgesi**: kare küçük resimleri, basılı tutup sürükleyerek sıralama, kare tutma süresi (×2, ×3 …), FPS ayarı, döngülü oynatma
 - **Ses parçası**: dalga formu karelerin altında, sürükleyerek kaydırma, kareler arasında gezerken sesi duyma (dudak senkronu)
 - **Dışa aktarma — filigran yok**: GIF, MP4 (WebCodecs ile cihazda, sesli), PNG dizisi (.zip) veya tek PNG; paylaş menüsüyle doğrudan Fotoğraflar’a/uygulamalara gönderme
@@ -35,6 +37,7 @@
 | Oynat / duraklat | `Enter` |
 | Fırça boyutu | `[` `]` |
 | Onion skin | `O` |
+| Yazı ekle | `T` |
 | Tuvali kaydır | `Boşluk` + sürükle |
 
 ## Tarayıcı desteği
@@ -66,6 +69,7 @@ node scripts/smoke-input.mjs    # kalem basıncı, avuç reddi, sıkıştır-yak
 node scripts/smoke-flows.mjs    # kare sürükle-bırak, katman işlemleri, .zip ile taşıma
 node scripts/smoke-install.mjs  # iPad’de “ana ekrana ekle” uyarısı
 node scripts/smoke-offline.mjs  # internetsiz açılış ve kayıt
+node scripts/smoke-place.mjs    # yazı/fotoğraf yerleştirme, fotoğrafları kare olarak ekleme
 node scripts/demo.mjs           # docs/screenshot.png ve docs/demo.gif üretir
 ```
 

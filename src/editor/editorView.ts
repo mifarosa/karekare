@@ -15,7 +15,9 @@ import { AutoSaver, type SaveState } from './autosave';
 import { openAudioPopover, openHelpDialog, openSettingsDialog } from './dialogs';
 import { Editor, type Notice, type ToolId } from './editor';
 import { openExportDialog } from './exportDialog';
+import { photoMenu, startText } from './insert';
 import { LayersPanel } from './layersPanel';
+import { Placer } from './placer';
 import { Player } from './player';
 import { Stage } from './stage';
 import { Timeline } from './timeline';
@@ -36,6 +38,7 @@ export class EditorView {
   private timeline: Timeline;
   private layers: LayersPanel;
   private toolbar: Toolbar;
+  private placer!: Placer;
   private options: OptionsBar;
   private saver: AutoSaver;
   private player: Player;
@@ -73,7 +76,10 @@ export class EditorView {
       onScrub: (i) => this.scrub(i),
     });
     this.layers = new LayersPanel(ed);
-    this.toolbar = new Toolbar(ed);
+    this.toolbar = new Toolbar(ed, {
+      onText: () => this.addText(),
+      onPhoto: (anchor) => photoMenu(anchor, ed, this.placer, (busy) => this.loading.classList.toggle('show', busy)),
+    });
     this.options = new OptionsBar(ed);
 
     const btn = (name: IconName, label: string, onclick: (e: Event) => void, cls = '') =>
@@ -123,6 +129,7 @@ export class EditorView {
       ),
       this.loading,
     );
+    this.placer = new Placer(ed, this.stage, this.options.el);
 
     this.el = h(
       'div',
@@ -209,13 +216,24 @@ export class EditorView {
     saveSettings();
   }
 
+  private addText(): void {
+    if (this.ed.playing) this.player.stop();
+    startText(this.ed, this.placer);
+  }
+
   private undo(): void {
+    // Undo while placing just drops the object being placed.
+    if (this.placer.active) {
+      this.placer.cancel();
+      return;
+    }
     if (this.ed.playing) this.player.stop();
     this.stage.cancelDraw();
     void this.ed.history.undo();
   }
 
   private redo(): void {
+    if (this.placer.active) this.placer.commit();
     if (this.ed.playing) this.player.stop();
     this.stage.cancelDraw();
     void this.ed.history.redo();
@@ -250,6 +268,7 @@ export class EditorView {
   }
 
   private export(): void {
+    if (this.placer.active) this.placer.commit();
     if (this.ed.playing) this.player.stop();
     openExportDialog(this.ed, this.saver, this.audio);
   }
@@ -290,6 +309,7 @@ export class EditorView {
 
   private async saveZip(): Promise<void> {
     try {
+      if (this.placer.active) this.placer.commit();
       this.ed.commitLive();
       await this.saver.flush();
       const thumb = await this.repo.readThumb(this.ed.project.id);
@@ -309,6 +329,12 @@ export class EditorView {
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
     if (document.querySelector('.dialog-backdrop:not(.dialog-out)')) return;
     const ed = this.ed;
+    if (this.placer.active && (e.key === 'Enter' || e.key === 'Escape')) {
+      if (e.key === 'Enter') this.placer.commit();
+      else this.placer.cancel();
+      e.preventDefault();
+      return;
+    }
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
     let handled = true;
@@ -331,6 +357,7 @@ export class EditorView {
     else if (key === 'o') this.toggleOnion();
     else if (key === 'n') ed.addFrame();
     else if (key === 'd') ed.duplicateFrame();
+    else if (key === 't') this.addText();
     else if (e.key === 'Enter') this.player.toggle();
     else if (e.key === 'ArrowLeft' || e.key === ',') this.stepFrame(-1);
     else if (e.key === 'ArrowRight' || e.key === '.') this.stepFrame(1);
@@ -398,6 +425,7 @@ export class EditorView {
     this.player.stop();
     this.stage.cancelDraw();
     closePopover();
+    if (this.placer.active) this.placer.commit();
     this.ed.commitLive();
     await this.saver.flush();
     this.dispose();
@@ -412,6 +440,7 @@ export class EditorView {
     for (const off of this.offs) off();
     this.saver.dispose();
     this.player.dispose();
+    this.placer.dispose();
     this.stage.dispose();
     this.timeline.dispose();
     this.layers.dispose();

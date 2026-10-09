@@ -1,4 +1,6 @@
 import type { BrushSettings, EraserSettings, FillSettings, OnionSettings } from './editor/editor';
+import type { TextFont } from './editor/placeContent';
+import type { FitMode } from './editor/placement';
 
 export interface AppSettings {
   /** auto: once a pen is used, fingers only pan/zoom. */
@@ -12,6 +14,8 @@ export interface AppSettings {
   eraser: EraserSettings;
   fill: FillSettings;
   onion: OnionSettings;
+  text: { font: TextFont; outline: boolean };
+  photoFit: FitMode;
 }
 
 const KEY = 'karekare.settings';
@@ -27,6 +31,8 @@ export const defaults: AppSettings = {
   eraser: { size: 24 },
   fill: { tolerance: 20, expand: 1, sampleAll: false },
   onion: { enabled: true, before: 1, after: 0, opacity: 0.3 },
+  text: { font: 'rounded', outline: true },
+  photoFit: 'cover',
 };
 
 export const settings: AppSettings = load();

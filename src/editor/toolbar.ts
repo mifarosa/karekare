@@ -23,14 +23,22 @@ const TOOLS: { id: ToolId; icon: IconName; label: StringKey; key: string }[] = [
   { id: 'hand', icon: 'hand', label: 'toolHand', key: 'H' },
 ];
 
-/** Vertical tool palette with the color swatch. */
+export interface ToolbarActions {
+  onText: () => void;
+  onPhoto: (anchor: HTMLElement) => void;
+}
+
+/** Vertical tool palette with the color swatch and insert buttons. */
 export class Toolbar {
   readonly el: HTMLElement;
   private buttons = new Map<ToolId, HTMLButtonElement>();
   private swatch: HTMLButtonElement;
   private offs: (() => void)[] = [];
 
-  constructor(private ed: Editor) {
+  constructor(
+    private ed: Editor,
+    actions: ToolbarActions,
+  ) {
     this.el = h('nav', { class: 'toolbar', 'aria-label': t('tools') });
     for (const tool of TOOLS) {
       const label = `${t(tool.label)} (${tool.key})`;
@@ -52,7 +60,17 @@ export class Toolbar {
       },
       h('span', { class: 'swatch-dot' }),
     );
-    this.el.append(h('div', { class: 'toolbar-sep' }), this.swatch);
+    const textBtn = h(
+      'button',
+      { class: 'tool-btn', title: `${t('addText')} (T)`, 'aria-label': t('addText'), onclick: () => actions.onText() },
+      icon('text', 22),
+    );
+    const photoBtn: HTMLButtonElement = h(
+      'button',
+      { class: 'tool-btn', title: t('addPhoto'), 'aria-label': t('addPhoto'), onclick: () => actions.onPhoto(photoBtn) },
+      icon('image', 22),
+    );
+    this.el.append(h('div', { class: 'toolbar-sep' }), this.swatch, h('div', { class: 'toolbar-sep' }), textBtn, photoBtn);
     this.offs.push(ed.events.on('tool', () => this.update()));
     this.update();
   }
