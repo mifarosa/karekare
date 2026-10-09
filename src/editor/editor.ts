@@ -119,6 +119,7 @@ export class Editor {
 
   private live: LiveState;
   private actToken = 0;
+  private leaveHooks = new Set<() => void>();
   private activation: Promise<void> = Promise.resolve();
   private layerBaseName: string;
 
@@ -166,6 +167,20 @@ export class Editor {
     return this.live.cell;
   }
 
+  /**
+   * Registers a hook that runs right before the editor moves away from the
+   * current cell (navigation, structure changes, playback), while the live
+   * canvas still belongs to it. Used to finish pending placements.
+   */
+  onLeave(fn: () => void): () => void {
+    this.leaveHooks.add(fn);
+    return () => this.leaveHooks.delete(fn);
+  }
+
+  private leave(): void {
+    for (const fn of [...this.leaveHooks]) fn();
+  }
+
   /** Resolves once the live canvas matches the current position. */
   whenReady(): Promise<void> {
     return this.activation;
@@ -178,6 +193,7 @@ export class Editor {
     if (this.editing) return;
     index = clampInt(index, 0, this.project.frames.length - 1);
     if (index === this.frameIndex && this.live.ready) return;
+    this.leave();
     this.commitLive();
     this.frameIndex = index;
     this.project.lastFrame = index;
@@ -187,6 +203,7 @@ export class Editor {
 
   selectLayer(id: string): void {
     if (this.editing || id === this.layerId || !this.project.layers.some((l) => l.id === id)) return;
+    this.leave();
     this.commitLive();
     this.layerId = id;
     this.project.lastLayer = id;
@@ -279,15 +296,19 @@ export class Editor {
   // Pixel editing (used by tools)
 
   /** Starts modifying the live canvas. Returns false when not allowed. */
+  /** Why the current layer cannot be drawn on, or null when it can. */
+  editBlocker(): Notice | null {
+    const layer = this.layer;
+    if (!layer.visible) return 'layerHidden';
+    if (layer.locked) return 'layerLocked';
+    return null;
+  }
+
   beginEdit(): boolean {
     if (!this.live.ready || this.editing || this.playing) return false;
-    const layer = this.layer;
-    if (!layer.visible) {
-      this.events.emit('notice', 'layerHidden');
-      return false;
-    }
-    if (layer.locked) {
-      this.events.emit('notice', 'layerLocked');
+    const blocker = this.editBlocker();
+    if (blocker) {
+      this.events.emit('notice', blocker);
       return false;
     }
     this.ensureLiveCell();
@@ -366,16 +387,26 @@ export class Editor {
     }
   }
 
-  /** Pastes `src` (project-sized) onto the current cell as one undo step. */
-  pasteImage(src: CanvasImageSource, rect: Rect): void {
+  /**
+   * Draws onto the current cell as one undo step. `rect` must cover every
+   * pixel `draw` touches. Returns false when the layer cannot be edited.
+   */
+  drawOnLive(rect: Rect, draw: (ctx: CanvasRenderingContext2D) => void): boolean {
     const r = clip(rect, this.project.width, this.project.height);
-    if (!r || !this.beginEdit()) return;
+    if (!r || !this.beginEdit()) return false;
+    const ctx = this.liveCtx;
     try {
-      const before = this.liveCtx.getImageData(r.x, r.y, r.w, r.h);
-      this.liveCtx.drawImage(src, rect.x, rect.y, rect.w, rect.h);
-      const after = this.liveCtx.getImageData(r.x, r.y, r.w, r.h);
+      const before = ctx.getImageData(r.x, r.y, r.w, r.h);
+      ctx.save();
+      try {
+        draw(ctx);
+      } finally {
+        ctx.restore();
+      }
+      const after = ctx.getImageData(r.x, r.y, r.w, r.h);
       this.liveChanged(r);
       this.pushPatch(r, before, after);
+      return true;
     } finally {
       this.endEdit();
     }
@@ -387,6 +418,7 @@ export class Editor {
   private structural(apply: () => void, revert: () => void): void {
     // Never restructure underneath an in-progress stroke.
     if (this.editing) return;
+    this.leave();
     const cmd: Command = {
       undo: () => {
         this.commitLive();
@@ -428,6 +460,27 @@ export class Editor {
       },
       () => {
         frames.splice(frames.indexOf(f), 1);
+        this.frameIndex = prev;
+      },
+    );
+  }
+
+  /** Inserts ready-made frames after the current one as a single undo step. */
+  insertFrames(newFrames: Frame[]): void {
+    if (newFrames.length === 0) return;
+    const frames = this.project.frames;
+    const at = this.frameIndex + 1;
+    const prev = this.frameIndex;
+    this.structural(
+      () => {
+        frames.splice(at, 0, ...newFrames);
+        this.frameIndex = at + newFrames.length - 1;
+      },
+      () => {
+        for (const f of newFrames) {
+          frames.splice(frames.indexOf(f), 1);
+          forgetFiles(f);
+        }
         this.frameIndex = prev;
       },
     );
@@ -655,6 +708,7 @@ export class Editor {
 
   setPlaying(playing: boolean): void {
     if (this.playing === playing) return;
+    if (playing) this.leave();
     this.playing = playing;
     this.events.emit('playback');
   }

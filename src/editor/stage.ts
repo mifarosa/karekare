@@ -60,6 +60,7 @@ export class Stage {
   onUndo: () => void = () => {};
   onRedo: () => void = () => {};
   onZoom: () => void = () => {};
+  private viewListeners = new Set<() => void>();
 
   constructor(private ed: Editor) {
     const { width, height } = ed.project;
@@ -167,11 +168,37 @@ export class Stage {
     this.stageEl.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
     this.stageEl.classList.toggle('pixelated', this.zoom >= 3);
     this.onZoom();
+    for (const fn of this.viewListeners) fn();
   }
 
-  private toProject(clientX: number, clientY: number): { x: number; y: number } {
+  /** Called whenever zoom or pan changes. */
+  onView(fn: () => void): () => void {
+    this.viewListeners.add(fn);
+    return () => this.viewListeners.delete(fn);
+  }
+
+  toProject(clientX: number, clientY: number): { x: number; y: number } {
     const r = this.el.getBoundingClientRect();
     return { x: (clientX - r.left - this.panX) / this.zoom, y: (clientY - r.top - this.panY) / this.zoom };
+  }
+
+  /** Project coordinates to coordinates inside the viewport element. */
+  toViewport(x: number, y: number): { x: number; y: number } {
+    return { x: x * this.zoom + this.panX, y: y * this.zoom + this.panY };
+  }
+
+  /** Project point at the middle of the visible area, kept inside the canvas. */
+  viewCenter(): { x: number; y: number } {
+    const r = this.el.getBoundingClientRect();
+    const p = this.toProject(r.left + r.width / 2, r.top + r.height / 2);
+    const { width, height } = this.ed.project;
+    return { x: Math.min(width, Math.max(0, p.x)), y: Math.min(height, Math.max(0, p.y)) };
+  }
+
+  /** Adds a project-sized canvas right above the live layer. */
+  addOverlay(canvas: HTMLCanvasElement): void {
+    canvas.classList.add('layer-canvas');
+    this.ed.liveCanvas.after(canvas);
   }
 
   // -------------------------------------------------------------------------

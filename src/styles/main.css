@@ -1893,3 +1893,182 @@ a {
     height: 42px;
   }
 }
+
+/* ------------------------------------------------------------------------ */
+/* Placing text and photos */
+
+.placer-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: move;
+  touch-action: none;
+}
+
+.placer-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
+.ph {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Larger invisible hit area for fingers. */
+.ph::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.ph-tl {
+  left: -12px;
+  top: -12px;
+  cursor: nwse-resize;
+}
+
+.ph-tr {
+  right: -12px;
+  top: -12px;
+  cursor: nesw-resize;
+}
+
+.ph-br {
+  right: -12px;
+  bottom: -12px;
+  cursor: nwse-resize;
+}
+
+.ph-bl {
+  left: -12px;
+  bottom: -12px;
+  cursor: nesw-resize;
+}
+
+.ph-rotate {
+  left: 50%;
+  top: -46px;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  cursor: grab;
+}
+
+.ph-stem {
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  width: 2px;
+  height: 18px;
+  margin-left: -1px;
+  background: var(--accent);
+}
+
+.optionsbar {
+  position: relative;
+}
+
+.optionsbar.placing {
+  overflow: hidden;
+}
+
+/* Covers the tool options strip while placing, so the canvas stays visible. */
+.placer-bar {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  background: var(--panel);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.placer-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.placer-controls {
+  flex: none;
+}
+
+.placer-controls:empty {
+  display: none;
+}
+
+/* Stays at the right edge even when the controls scroll sideways. */
+.placer-actions {
+  position: sticky;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  padding-left: 8px;
+  background: var(--panel);
+  flex: none;
+}
+
+.text-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.placer-text {
+  width: min(260px, 55vw);
+  min-height: 38px;
+  height: 38px;
+  padding: 6px 10px;
+  resize: none;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.progress-toast {
+  position: fixed;
+  left: 50%;
+  top: calc(16px + var(--safe-top));
+  transform: translateX(-50%);
+  z-index: 70;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #23262f;
+  color: #fff;
+  box-shadow: var(--shadow);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .placer-bar {
+    padding: 4px 8px;
+    gap: 8px;
+  }
+
+  .placer-actions .btn {
+    width: 42px;
+    padding: 0;
+  }
+
+  .placer-actions .btn span {
+    display: none;
+  }
+}

@@ -72,27 +72,25 @@ export function canShareFiles(): boolean {
   }
 }
 
-export function pickFile(accept: string): Promise<File | null> {
+export async function pickFile(accept: string): Promise<File | null> {
+  return (await pickFiles(accept, false))[0] ?? null;
+}
+
+/** Opens the system file picker; resolves with [] when it is dismissed. */
+export function pickFiles(accept: string, multiple = true): Promise<File[]> {
   return new Promise((resolve) => {
-    const input = h('input', { type: 'file', accept, style: 'display:none' });
+    const input = h('input', { type: 'file', accept, multiple, style: 'display:none' });
     let done = false;
-    input.addEventListener('change', () => {
+    const finish = (files: File[]) => {
+      if (done) return;
       done = true;
-      resolve(input.files?.[0] ?? null);
+      resolve(files);
       input.remove();
-    });
-    // Resolve null if the picker is dismissed (focus returns without change).
-    window.addEventListener(
-      'focus',
-      () =>
-        setTimeout(() => {
-          if (!done) {
-            resolve(null);
-            input.remove();
-          }
-        }, 1000),
-      { once: true },
-    );
+    };
+    input.addEventListener('change', () => finish([...(input.files ?? [])]));
+    input.addEventListener('cancel', () => finish([]));
+    // Older browsers have no cancel event: give up once focus returns without a change.
+    window.addEventListener('focus', () => setTimeout(() => finish([]), 1000), { once: true });
     document.body.append(input);
     input.click();
   });

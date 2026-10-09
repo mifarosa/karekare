@@ -124,6 +124,7 @@ export function openHelpDialog(): void {
     [t('helpOnion'), t('helpOnionKeys')],
     [t('helpReorder'), t('helpReorderKeys')],
     [t('helpHold'), t('helpHoldKeys')],
+    [t('helpPlace'), t('helpPlaceKeys')],
   ];
   openDialog({
     title: t('help'),
