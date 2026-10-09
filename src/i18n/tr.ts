@@ -204,6 +204,24 @@ export const tr: Record<keyof typeof en, string> = {
   exportNoAudioNote: 'Bu tarayıcı sesi kodlayamadığı için video sessiz.',
   shareFailed: 'Paylaşım kullanılamıyor. Bunun yerine İndir’i kullan.',
 
+  // Brushes
+  brushes: 'Fırçalar',
+  chooseBrush: 'Fırça seç',
+  brushPaint: 'Boya fırçası',
+  brushHighlighter: 'Fosforlu kalem',
+  brushCrayon: 'Pastel boya',
+  brushChalk: 'Tebeşir',
+  brushNeon: 'Neon',
+  brushCalligraphy: 'Kaligrafi',
+  brushSpray: 'Sprey boya',
+  brushRainbow: 'Gökkuşağı',
+  brushDots: 'Noktalı',
+  brushStars: 'Yıldızlar',
+  brushHearts: 'Kalpler',
+  brushBubbles: 'Baloncuklar',
+  brushConfetti: 'Konfeti',
+  onionToggle: 'Hayalet kare: önceki kareyi soluk göster',
+
   // Text & photos
   addText: 'Yazı ekle',
   addPhoto: 'Fotoğraf ekle',

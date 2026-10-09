@@ -1,6 +1,7 @@
 import type { BrushSettings, EraserSettings, FillSettings, OnionSettings } from './editor/editor';
 import type { TextFont } from './editor/placeContent';
 import type { FitMode } from './editor/placement';
+import { isBrushKind } from './core/brushes';
 
 export interface AppSettings {
   /** auto: once a pen is used, fingers only pan/zoom. */
@@ -16,6 +17,8 @@ export interface AppSettings {
   onion: OnionSettings;
   text: { font: TextFont; outline: boolean };
   photoFit: FitMode;
+  /** Size and opacity remembered per brush. */
+  brushPresets: Record<string, { size: number; opacity: number }>;
 }
 
 const KEY = 'karekare.settings';
@@ -33,6 +36,7 @@ export const defaults: AppSettings = {
   onion: { enabled: true, before: 1, after: 0, opacity: 0.3 },
   text: { font: 'rounded', outline: true },
   photoFit: 'cover',
+  brushPresets: {},
 };
 
 export const settings: AppSettings = load();
@@ -52,6 +56,8 @@ function load(): AppSettings {
   } catch {
     // Ignore corrupt or blocked storage.
   }
+  // Saved brush may come from a newer or older version.
+  if (!isBrushKind(s.brush.kind)) s.brush.kind = 'pen';
   return s;
 }
 

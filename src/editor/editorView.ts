@@ -87,7 +87,7 @@ export class EditorView {
 
     this.undoBtn = btn('undo', `${t('undo')} (Ctrl+Z)`, () => this.undo());
     this.redoBtn = btn('redo', `${t('redo')} (Ctrl+Shift+Z)`, () => this.redo());
-    this.onionBtn = btn('onion', `${t('onionSkin')} (O)`, () => this.toggleOnion());
+    this.onionBtn = btn('onion', `${t('onionToggle')} (O)`, () => this.toggleOnion());
     this.saveDot = h('span', { class: 'save-state' });
     this.titleBtn = h('button', { class: 'title-btn', title: t('rename'), onclick: () => void this.rename() }, project.name);
     this.zoomLabel = h('button', { class: 'zoom-label', title: t('fitScreen'), onclick: () => this.stage.fit() });

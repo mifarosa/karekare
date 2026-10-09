@@ -1,9 +1,10 @@
-import type { BrushKind } from '../core/brush';
+import { brushDef } from '../core/brushes';
 import { t, type StringKey } from '../i18n';
 import { saveSettings, settings } from '../settings';
 import { clear, h } from '../ui/dom';
 import { icon, type IconName } from '../ui/icons';
 import { closePopover, popover } from '../ui/popover';
+import { BRUSH_NAMES, brushPreview, openBrushPicker } from './brushPicker';
 import type { Editor, ToolId } from './editor';
 
 export const PALETTE = [
@@ -42,9 +43,18 @@ export class Toolbar {
     this.el = h('nav', { class: 'toolbar', 'aria-label': t('tools') });
     for (const tool of TOOLS) {
       const label = `${t(tool.label)} (${tool.key})`;
-      const b = h(
+      const b: HTMLButtonElement = h(
         'button',
-        { class: 'tool-btn', title: label, 'aria-label': label, onclick: () => ed.setTool(tool.id) },
+        {
+          class: 'tool-btn',
+          title: label,
+          'aria-label': label,
+          onclick: () => {
+            // Tapping the brush again opens the brush picker.
+            if (tool.id === 'brush' && ed.tool === 'brush') openBrushPicker(b, ed, settings.leftHanded ? 'left' : 'right');
+            else ed.setTool(tool.id);
+          },
+        },
         icon(tool.icon, 22),
       );
       this.buttons.set(tool.id, b);
@@ -154,21 +164,21 @@ export class OptionsBar {
     };
     switch (ed.tool) {
       case 'brush': {
-        const kinds: { id: BrushKind; label: StringKey }[] = [
-          { id: 'pen', label: 'brushPen' },
-          { id: 'pencil', label: 'brushPencil' },
-          { id: 'marker', label: 'brushMarker' },
-        ];
+        const chip: HTMLButtonElement = h(
+          'button',
+          {
+            class: 'brush-chip',
+            title: t('chooseBrush'),
+            'aria-label': t('chooseBrush'),
+            onclick: () => openBrushPicker(chip, ed, 'bottom'),
+          },
+          brushPreview(ed.brush.kind, ed.color, 52, 26),
+          h('span', null, t(BRUSH_NAMES[ed.brush.kind])),
+          icon('chevronDown', 16),
+        );
         this.el.append(
-          segmented(
-            kinds.map((k) => ({ value: k.id, label: t(k.label) })),
-            ed.brush.kind,
-            (v) => {
-              ed.brush.kind = v as BrushKind;
-              persist();
-            },
-          ),
-          slider(t('size'), 1, 120, ed.brush.size, (v) => {
+          chip,
+          slider(t('size'), 1, brushDef(ed.brush.kind).maxSize, ed.brush.size, (v) => {
             ed.brush.size = v;
             persist();
           }, (v) => `${v}px`, sizePreview(ed)),

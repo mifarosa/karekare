@@ -1,8 +1,9 @@
-import { fillOutline, outlineBounds, strokeOutline, type InputPoint, type StrokeStyle } from '../core/brush';
+import type { InputPoint } from '../core/brush';
+import { brushDef, createStroke, type BrushStroke } from '../core/brushes';
 import { createCanvas, ctx2d, parseColor, toHex } from '../core/canvas';
 import { expandRegion, floodFill, paintRegion } from '../core/floodFill';
 import { drawFrame } from '../core/render';
-import { clip, union } from '../model/rect';
+import { union } from '../model/rect';
 import type { Rect } from '../model/types';
 import type { Editor } from './editor';
 
@@ -37,16 +38,13 @@ class Scratch {
 
 const scratch = new Scratch();
 
-/** Brush and eraser: draws a perfect-freehand stroke on the live canvas. */
+/** Brush and eraser: draws a stroke of the current brush on the live canvas. */
 export class StrokeTool implements Tool {
-  private points: InputPoint[] = [];
+  private stroke: BrushStroke | null = null;
   private active = false;
-  private prevBox: Rect | null = null;
+  private continuous = false;
   private totalBox: Rect | null = null;
   private raf = 0;
-  private style!: StrokeStyle;
-  private paint: string | CanvasPattern = '#000';
-  private alpha = 1;
   private before!: HTMLCanvasElement;
   private beforeCtx!: CanvasRenderingContext2D;
 
@@ -64,19 +62,26 @@ export class StrokeTool implements Tool {
     this.beforeCtx.clearRect(0, 0, width, height);
     this.beforeCtx.drawImage(this.ed.liveCanvas, 0, 0);
 
-    const pen = p.pointerType === 'pen';
-    if (this.erase) {
-      this.style = { kind: 'eraser', size: this.ed.eraser.size, smoothing: 0.3, pressure: false };
-      this.alpha = 1;
-      this.paint = '#000';
-    } else {
-      const b = this.ed.brush;
-      this.style = { kind: b.kind, size: b.size, smoothing: b.smoothing, pressure: pen };
-      this.alpha = b.opacity;
-      this.paint = b.kind === 'pencil' ? pencilPattern(this.ed.liveCtx, this.ed.color) : this.ed.color;
-    }
-    this.points = [toInput(p)];
-    this.prevBox = null;
+    const seed = (Math.random() * 0xffffffff) >>> 0;
+    const b = this.ed.brush;
+    this.stroke = createStroke(
+      this.erase
+        ? { kind: 'eraser', color: '#000', size: this.ed.eraser.size, opacity: 1, smoothing: 0.3, pressure: false, width, height, seed }
+        : {
+            kind: b.kind,
+            color: this.ed.color,
+            size: b.size,
+            opacity: b.opacity,
+            smoothing: b.smoothing,
+            pressure: p.pointerType === 'pen',
+            width,
+            height,
+            seed,
+          },
+      this.ed.liveCtx,
+    );
+    this.continuous = !this.erase && !!brushDef(b.kind).continuous;
+    this.stroke.push(toInput(p));
     this.totalBox = null;
     this.active = true;
     this.render(false);
@@ -84,16 +89,16 @@ export class StrokeTool implements Tool {
 
   move(points: ToolPoint[]): void {
     if (!this.active) return;
-    for (const p of points) this.points.push(toInput(p));
-    if (!this.raf) this.raf = requestAnimationFrame(() => this.render(false));
+    for (const p of points) this.stroke!.push(toInput(p));
+    this.schedule();
   }
 
   up(p: ToolPoint): void {
     if (!this.active) return;
-    const last = this.points[this.points.length - 1];
-    if (!last || last[0] !== p.x || last[1] !== p.y) this.points.push(toInput(p));
+    this.stroke!.push(toInput(p));
     this.render(true);
     this.active = false;
+    this.stroke = null;
     const rect = this.totalBox;
     if (!rect) {
       this.ed.endEdit();
@@ -111,39 +116,29 @@ export class StrokeTool implements Tool {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.active = false;
-    const r = this.totalBox;
-    if (r) {
-      const ctx = this.ed.liveCtx;
-      ctx.clearRect(r.x, r.y, r.w, r.h);
-      ctx.drawImage(this.before, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
-    }
+    this.stroke = null;
+    if (this.totalBox) this.restore(this.totalBox);
     this.ed.endEdit();
   }
+
+  private schedule(): void {
+    if (!this.raf) this.raf = requestAnimationFrame(() => this.render(false));
+  }
+
+  private restore = (r: Rect): void => {
+    const ctx = this.ed.liveCtx;
+    ctx.clearRect(r.x, r.y, r.w, r.h);
+    ctx.drawImage(this.before, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+  };
 
   private render(last: boolean): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
-    if (!this.active) return;
-    const { width, height } = this.ed.project;
-    const outline = strokeOutline(this.points, this.style, last);
-    const box = outlineBounds(outline, 2);
-    const boxClip = box ? clip(box, width, height) : null;
-    const dirty = union(boxClip, this.prevBox);
-    if (!dirty) return;
-    const ctx = this.ed.liveCtx;
-    ctx.save();
-    ctx.clearRect(dirty.x, dirty.y, dirty.w, dirty.h);
-    ctx.drawImage(this.before, dirty.x, dirty.y, dirty.w, dirty.h, dirty.x, dirty.y, dirty.w, dirty.h);
-    ctx.beginPath();
-    ctx.rect(dirty.x, dirty.y, dirty.w, dirty.h);
-    ctx.clip();
-    ctx.globalAlpha = this.alpha;
-    ctx.globalCompositeOperation = this.erase ? 'destination-out' : 'source-over';
-    ctx.fillStyle = this.paint;
-    fillOutline(ctx, outline);
-    ctx.restore();
-    this.prevBox = boxClip;
-    this.totalBox = union(this.totalBox, dirty);
+    if (!this.active || !this.stroke) return;
+    const changed = this.stroke.draw(this.ed.liveCtx, this.restore, last);
+    this.totalBox = union(this.totalBox, changed);
+    // Spray keeps painting while the pen rests.
+    if (this.continuous && !last) this.schedule();
   }
 }
 
@@ -151,35 +146,6 @@ function toInput(p: ToolPoint): InputPoint {
   // Pens report 0 right at touch-down; start thin rather than with a blob.
   const pressure = p.pointerType === 'pen' ? Math.max(0.05, p.pressure) : 0.5;
   return [p.x, p.y, pressure];
-}
-
-const patterns = new Map<string, CanvasPattern>();
-
-/** Grainy fill that makes strokes look like pencil on paper. */
-function pencilPattern(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | string {
-  let pat = patterns.get(color);
-  if (pat) return pat;
-  const size = 64;
-  const c = createCanvas(size, size);
-  const g = ctx2d(c);
-  const img = g.createImageData(size, size);
-  const [r, gr, b] = parseColor(color);
-  // Deterministic noise so the texture does not change between strokes.
-  let seed = 1234567;
-  const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  for (let i = 0; i < size * size; i++) {
-    const n = rand();
-    img.data[i * 4] = r;
-    img.data[i * 4 + 1] = gr;
-    img.data[i * 4 + 2] = b;
-    img.data[i * 4 + 3] = n < 0.18 ? 40 : 150 + Math.floor(rand() * 105);
-  }
-  g.putImageData(img, 0, 0);
-  const created = ctx.createPattern(c as HTMLCanvasElement, 'repeat');
-  if (!created) return color;
-  if (patterns.size > 32) patterns.clear();
-  patterns.set(color, created);
-  return created;
 }
 
 /** Bucket fill. */

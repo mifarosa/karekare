@@ -202,6 +202,24 @@ export const en = {
   exportNoAudioNote: 'This browser could not encode the sound, so the video is silent.',
   shareFailed: 'Sharing is not available. Use Download instead.',
 
+  // Brushes
+  brushes: 'Brushes',
+  chooseBrush: 'Choose brush',
+  brushPaint: 'Paintbrush',
+  brushHighlighter: 'Highlighter',
+  brushCrayon: 'Crayon',
+  brushChalk: 'Chalk',
+  brushNeon: 'Neon',
+  brushCalligraphy: 'Calligraphy',
+  brushSpray: 'Spray paint',
+  brushRainbow: 'Rainbow',
+  brushDots: 'Dotted',
+  brushStars: 'Stars',
+  brushHearts: 'Hearts',
+  brushBubbles: 'Bubbles',
+  brushConfetti: 'Confetti',
+  onionToggle: 'Ghost frames: show the previous frame faintly',
+
   // Text & photos
   addText: 'Add text',
   addPhoto: 'Add photo',
