@@ -99,6 +99,9 @@ assert(true, 'project zip downloaded');
 // Back home and import it as a new project.
 await page.click('.topbar .icon-btn[aria-label="My animations"]');
 await page.waitForSelector('.home');
+// The project list loads asynchronously; count only once it is there.
+await page.waitForSelector('.project-card');
+await page.waitForTimeout(200);
 const cardsBefore = await page.locator('.project-card').count();
 const chooser = page.waitForEvent('filechooser');
 await page.locator('.big-btn', { hasText: 'Open project file' }).click();

@@ -2,7 +2,7 @@ import { createCanvas, ctx2d } from '../core/canvas';
 import { CellStore } from '../core/cellStore';
 import { Emitter } from '../core/emitter';
 import { History, type Command } from '../core/history';
-import type { BrushKind } from '../core/brush';
+import type { BrushKind } from '../core/brushes';
 import { uid } from '../model/ids';
 import {
   LIMITS,

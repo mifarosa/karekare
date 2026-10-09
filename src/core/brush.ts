@@ -1,52 +1,8 @@
-import { getStroke, type StrokeOptions } from 'perfect-freehand';
 import type { Rect } from '../model/types';
 import type { Ctx2D } from './canvas';
 
-export type BrushKind = 'pen' | 'marker' | 'pencil';
-
-export interface StrokeStyle {
-  kind: BrushKind | 'eraser';
-  size: number;
-  /** 0..1, how strongly input is smoothed. */
-  smoothing: number;
-  /** Real pen pressure is available. */
-  pressure: boolean;
-}
-
 /** [x, y, pressure] */
 export type InputPoint = [number, number, number];
-
-export function strokeOptions(style: StrokeStyle, last: boolean): StrokeOptions {
-  const streamline = 0.15 + style.smoothing * 0.75;
-  const base: StrokeOptions = {
-    size: style.size,
-    smoothing: 0.5,
-    streamline,
-    last,
-    simulatePressure: !style.pressure,
-  };
-  switch (style.kind) {
-    case 'pen':
-      return {
-        ...base,
-        thinning: style.pressure ? 0.65 : 0.45,
-        easing: (t) => t,
-        start: { taper: 0, cap: true },
-        end: { taper: 0, cap: true },
-      };
-    case 'pencil':
-      return { ...base, thinning: style.pressure ? 0.35 : 0.15, smoothing: 0.35 };
-    case 'marker':
-    case 'eraser':
-      return { ...base, thinning: 0, simulatePressure: false };
-  }
-}
-
-/** Outline polygon of a stroke as [x, y] points. */
-export function strokeOutline(points: InputPoint[], style: StrokeStyle, last: boolean): number[][] {
-  if (points.length === 0) return [];
-  return getStroke(points, strokeOptions(style, last));
-}
 
 /** Fills a perfect-freehand outline using quadratic curves through midpoints. */
 export function fillOutline(ctx: Ctx2D, outline: number[][]): void {
