@@ -12,8 +12,17 @@ import type { Stage } from './stage';
 export interface PlaceOptions {
   /** Initial scale; defaults to fitting half of the canvas. */
   scale?: number;
+  /** Initial placement; defaults to the middle of the visible canvas. */
+  at?: Placement;
   /** Extra controls shown in the bar (e.g. text input). */
   controls?: HTMLElement;
+  /** Opacity of the object while placing; defaults to the layer's. */
+  opacity?: number;
+  /**
+   * Takes the final placement instead of drawing into the current layer
+   * (which then needs not be editable). Returns whether it was accepted.
+   */
+  apply?: (p: Placement) => boolean;
   onEnd?: (committed: boolean) => void;
 }
 
@@ -112,7 +121,7 @@ export class Placer {
   /** Starts placing `content` in the middle of the visible canvas. */
   start(content: PlaceContent, opts: PlaceOptions = {}): boolean {
     if (this.active) this.commit();
-    const blocker = this.ed.editBlocker();
+    const blocker = opts.apply ? null : this.ed.editBlocker();
     if (blocker || this.ed.playing) {
       if (blocker) this.ed.events.emit('notice', blocker);
       content.dispose();
@@ -122,15 +131,17 @@ export class Placer {
     const c = this.stage.viewCenter();
     this.content = content;
     this.opts = opts;
-    this.p = {
-      cx: c.x,
-      cy: c.y,
-      scale: opts.scale ?? Math.min((width * 0.5) / content.width, (height * 0.5) / content.height),
-      rotation: 0,
-    };
+    this.p = opts.at
+      ? { ...opts.at }
+      : {
+          cx: c.x,
+          cy: c.y,
+          scale: opts.scale ?? Math.min((width * 0.5) / content.width, (height * 0.5) / content.height),
+          rotation: 0,
+        };
     this.overlay = createCanvas(width, height) as HTMLCanvasElement;
     this.overlay.classList.add('placing');
-    this.overlay.style.opacity = String(this.ed.layer.opacity);
+    this.overlay.style.opacity = String(opts.opacity ?? this.ed.layer.opacity);
     this.stage.addOverlay(this.overlay);
     this.slot.replaceChildren(...(opts.controls ? [opts.controls] : []));
     this.shield.hidden = this.box.hidden = this.bar.hidden = false;
@@ -159,12 +170,15 @@ export class Placer {
     const empty = (content as { isEmpty?: boolean }).isEmpty === true;
     const rect = inflate(placementBounds(this.p, content.width, content.height), 2);
     const p = { ...this.p };
+    const apply = this.opts.apply;
     const ok =
       !empty &&
-      this.ed.drawOnLive(rect, (ctx) => {
-        applyPlacement(ctx, p, content.width, content.height);
-        content.draw(ctx);
-      });
+      (apply
+        ? apply(p)
+        : this.ed.drawOnLive(rect, (ctx) => {
+            applyPlacement(ctx, p, content.width, content.height);
+            content.draw(ctx);
+          }));
     this.finish(ok);
     return ok;
   }

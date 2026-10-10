@@ -30,6 +30,7 @@ export function createProject(opts: NewProjectOptions, layerName = 'Layer 1'): P
     layers: [layer],
     frames: [newFrame()],
     audio: null,
+    reference: null,
     created: now,
     modified: now,
     lastFrame: 0,

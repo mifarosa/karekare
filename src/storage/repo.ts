@@ -1,7 +1,7 @@
 import type { Project, ProjectSummary } from '../model/types';
 import { uid } from '../model/ids';
 import type { FileStore } from './fileStore';
-import { FORMAT, audioFileName, cellFileName, fromJSON, toJSON, type ProjectJSON } from './serialize';
+import { FILE_DIRS, FORMAT, audioFileName, cellFileName, fromJSON, referenceFileName, toJSON, type ProjectJSON } from './serialize';
 
 const ROOT = 'projects';
 const dirOf = (id: string) => `${ROOT}/${id}`;
@@ -59,9 +59,7 @@ export class ProjectRepo {
     const j = await this.readJSON(id);
     if (!j) throw new Error('Project not found');
     const dir = dirOf(id);
-    const { project, missing } = await fromJSON(j, (name, kind) =>
-      this.fs.read(`${dir}/${kind === 'cell' ? 'cells' : 'audio'}/${name}`),
-    );
+    const { project, missing } = await fromJSON(j, (name, kind) => this.fs.read(`${dir}/${FILE_DIRS[kind]}/${name}`));
     project.id = id;
     return { project, missing };
   }
@@ -90,9 +88,17 @@ export class ProjectRepo {
         p.audio.file = audioFile;
       }
     }
+    let refFile: string | null = null;
+    if (p.reference) {
+      refFile = referenceFileName(p.reference);
+      if (p.reference.file !== refFile) {
+        await this.fs.write(`${dir}/ref/${refFile}`, p.reference.blob);
+        p.reference.file = refFile;
+      }
+    }
 
     const seq = (this.seqs.get(p.id) ?? 0) + 1;
-    const json: ProjectJSON = { ...toJSON(p, (c) => c.file, audioFile), seq };
+    const json: ProjectJSON = { ...toJSON(p, (c) => c.file, audioFile, refFile), seq };
     await this.fs.write(`${dir}/project-${SLOTS[seq % 2]}.json`, JSON.stringify(json));
     this.seqs.set(p.id, seq);
 
@@ -102,6 +108,9 @@ export class ProjectRepo {
     for (const name of await this.fs.list(`${dir}/audio`)) {
       if (name !== audioFile) await this.fs.remove(`${dir}/audio/${name}`);
     }
+    for (const name of await this.fs.list(`${dir}/ref`)) {
+      if (name !== refFile) await this.fs.remove(`${dir}/ref/${name}`);
+    }
   }
 
   /** Stores a project that came from elsewhere (new, imported, duplicated). */
@@ -110,6 +119,7 @@ export class ProjectRepo {
     if (existing.includes(p.id)) p.id = uid();
     for (const f of p.frames) for (const id in f.cells) f.cells[id].file = null;
     if (p.audio) p.audio.file = null;
+    if (p.reference) p.reference.file = null;
     await this.save(p);
   }
 

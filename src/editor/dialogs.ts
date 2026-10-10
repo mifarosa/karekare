@@ -34,6 +34,20 @@ export function openSettingsDialog(ed: Editor, onAppChange: () => void): void {
     slider(t('onionBefore'), 0, 3, o.before, (v) => setOnion({ before: v }), String),
     slider(t('onionAfter'), 0, 3, o.after, (v) => setOnion({ after: v }), String),
     slider(t('onionOpacity'), 5, 80, Math.round(o.opacity * 100), (v) => setOnion({ opacity: v / 100 }), (v) => `${v}%`),
+    h(
+      'div',
+      { class: 'field' },
+      h('span', { class: 'opt-label' }, t('onionColors')),
+      segmented(
+        [
+          { value: 'tint', label: t('onionTinted') },
+          { value: 'real', label: t('onionNatural') },
+        ],
+        o.colored ? 'tint' : 'real',
+        (v) => setOnion({ colored: v === 'tint' }),
+      ),
+    ),
+    h('p', { class: 'muted small' }, t('onionColorsHint')),
   );
   function setOnion(props: Partial<typeof o>): void {
     ed.setOnion(props);
@@ -122,6 +136,7 @@ export function openHelpDialog(): void {
     [t('helpTools'), t('helpToolsKeys')],
     [t('helpSize'), t('helpSizeKeys')],
     [t('helpOnion'), t('helpOnionKeys')],
+    [t('helpReference'), t('helpReferenceKeys')],
     [t('helpReorder'), t('helpReorderKeys')],
     [t('helpHold'), t('helpHoldKeys')],
     [t('helpPlace'), t('helpPlaceKeys')],

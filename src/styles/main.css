@@ -415,6 +415,18 @@ a {
   margin: 0 10px 6px;
 }
 
+.menu-sep {
+  width: 100%;
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.menu-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .menu-item {
   display: flex;
   align-items: center;
@@ -2025,6 +2037,15 @@ a {
   padding-left: 8px;
   background: var(--panel);
   flex: none;
+}
+
+.placer-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .text-controls {

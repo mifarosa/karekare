@@ -16,7 +16,8 @@
 - **16 fırça**: kalem, kurşun kalem, keçeli, boya fırçası, fosforlu kalem, pastel boya, tebeşir, neon, kaligrafi, sprey boya (basılı tutunca birikir), gökkuşağı, noktalı, yıldızlar, kalpler, baloncuklar, konfeti. Hepsi kalem basıncına duyarlı; önizlemeli fırça seçicisi var ve her fırça kendi boyutunu hatırlıyor. Ayrıca silgi, renk seçici, ayarlanabilir yumuşatma
 - **Boya kovası**: hassasiyet ayarı, “çizgi altına taşır” seçeneği (kenarlarda boşluk kalmaz) ve “tüm katmanlara bak” ile ayrı katmandaki çizgilere göre boyama
 - **Sınırsız katman ve kare**: gizle/göster, kilitle, saydamlık, çoğalt, sırala
-- **Onion skin**: önceki/sonraki kareler kırmızı/yeşil soluk görünür
+- **Onion skin (hayalet kare)**: önceki/sonraki kareler kırmızı/yeşil soluk görünür; renk tonu koyu yerleri boyar, açık yerleri soldurur, böylece fotoğraf karelerinin de detayı görünür. İstersen ayarlardan “Gerçek renkler” seçilebilir
+- **Referans fotoğraf (kopya kağıdı)**: bir fotoğrafı tüm karelerin arkasında soluk göster, üstünden çiz. Taşı, büyüt/küçült, döndür; saydamlığını ayarla, gizle/göster (`R`), istersen çizimin üstüne al. Projeyle birlikte kaydedilir ama dışa aktarılan GIF/MP4/PNG’de yer almaz
 - **Yazı ve fotoğraf ekleme**: yazıyı (3 yazı tipi, kenarlık) veya fotoğrafı sürükleyerek taşı, köşeden ya da iki parmakla büyüt/küçült, üstteki tutamaçla döndür, sonra “Yerleştir”
 - **Fotoğrafı yeni kare olarak ekleme**: bir ya da birden fazla fotoğraf seç, her biri ayrı kare olur (ekranı doldur veya tamamını göster), stop-motion için ideal
 - **Zaman çizelgesi**: kare küçük resimleri, basılı tutup sürükleyerek sıralama, kare tutma süresi (×2, ×3 …), FPS ayarı, döngülü oynatma
@@ -37,6 +38,7 @@
 | Oynat / duraklat | `Enter` |
 | Fırça boyutu | `[` `]` |
 | Onion skin | `O` |
+| Referans fotoğrafı gizle/göster | `R` |
 | Yazı ekle | `T` |
 | Tuvali kaydır | `Boşluk` + sürükle |
 
@@ -71,6 +73,7 @@ node scripts/smoke-install.mjs  # iPad’de “ana ekrana ekle” uyarısı
 node scripts/smoke-offline.mjs  # internetsiz açılış ve kayıt
 node scripts/smoke-place.mjs    # yazı/fotoğraf yerleştirme, fotoğrafları kare olarak ekleme
 node scripts/smoke-brushes.mjs  # 16 fırçanın hepsiyle çizim, seçici, fırça başına boyut
+node scripts/smoke-reference.mjs  # referans fotoğraf, fotoğraf karelerinin hayaleti
 node scripts/demo.mjs           # docs/screenshot.png ve docs/demo.gif üretir
 ```
 
@@ -118,6 +121,6 @@ Kare Kare ücretsiz ve reklamsız kalacak. Beğendiysen [bana bir kahve ısmarla
 
 Kare Kare is a frame-by-frame animation PWA built for kids, students and anyone who wants a FlipaClip-style tool without layer limits, watermarks or ads. It runs entirely in the browser, installs to the home screen and works offline.
 
-**Features:** 16 pressure-sensitive brushes (pen, pencil, marker, paintbrush, highlighter, crayon, chalk, neon, calligraphy, spray, rainbow, dots, stars, hearts, bubbles, confetti), eraser, fill bucket with tolerance and gap-hiding, color picker, unlimited layers and frames, onion skin, frame holds, drag-to-reorder timeline, adjustable FPS, a sound track with waveform and scrubbing for lip-sync, GIF / MP4 / PNG-sequence export with no watermark, autosave to the Origin Private File System and portable `.zip` project files. Palm rejection once a stylus is detected, two-finger tap to undo, three-finger tap to redo, pinch to zoom, left-handed layout, Turkish and English UI.
+**Features:** 16 pressure-sensitive brushes (pen, pencil, marker, paintbrush, highlighter, crayon, chalk, neon, calligraphy, spray, rainbow, dots, stars, hearts, bubbles, confetti), eraser, fill bucket with tolerance and gap-hiding, color picker, unlimited layers and frames, onion skin that keeps photo detail (red/green tint or real colors), a reference photo to trace over (shown on every frame, never exported), frame holds, drag-to-reorder timeline, adjustable FPS, a sound track with waveform and scrubbing for lip-sync, GIF / MP4 / PNG-sequence export with no watermark, autosave to the Origin Private File System and portable `.zip` project files. Palm rejection once a stylus is detected, two-finger tap to undo, three-finger tap to redo, pinch to zoom, left-handed layout, Turkish and English UI.
 
 Run `npm install && npm run dev` to start developing; see the Turkish sections above for scripts, architecture and deployment (GitHub Pages via Actions).

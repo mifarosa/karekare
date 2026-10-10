@@ -19,6 +19,7 @@ import { photoMenu, startText } from './insert';
 import { LayersPanel } from './layersPanel';
 import { Placer } from './placer';
 import { Player } from './player';
+import { toggleReference } from './reference';
 import { Stage } from './stage';
 import { Timeline } from './timeline';
 import { OptionsBar, Toolbar, setColor } from './toolbar';
@@ -78,7 +79,16 @@ export class EditorView {
     this.layers = new LayersPanel(ed);
     this.toolbar = new Toolbar(ed, {
       onText: () => this.addText(),
-      onPhoto: (anchor) => photoMenu(anchor, ed, this.placer, (busy) => this.loading.classList.toggle('show', busy)),
+      onPhoto: (anchor) =>
+        photoMenu(anchor, {
+          ed,
+          placer: this.placer,
+          stage: this.stage,
+          onBusy: (busy) => this.loading.classList.toggle('show', busy),
+          onBeforePlace: () => {
+            if (ed.playing) this.player.stop();
+          },
+        }),
     });
     this.options = new OptionsBar(ed);
 
@@ -355,6 +365,7 @@ export class EditorView {
     else if (key === 'i') ed.setTool('eyedropper');
     else if (key === 'h') ed.setTool('hand');
     else if (key === 'o') this.toggleOnion();
+    else if (key === 'r') handled = toggleReference(ed);
     else if (key === 'n') ed.addFrame();
     else if (key === 'd') ed.duplicateFrame();
     else if (key === 't') this.addText();

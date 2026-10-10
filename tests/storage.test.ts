@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createProject, newCell, newFrame, newLayer } from '../src/model/project';
-import type { Cell, Project } from '../src/model/types';
+import type { Cell, Project, Reference } from '../src/model/types';
 import { MemoryFileStore } from '../src/storage/fileStore';
 import { ProjectRepo } from '../src/storage/repo';
 import { projectFromZip, projectToZip } from '../src/storage/zip';
@@ -29,6 +29,25 @@ function sample(): Project {
     file: null,
   };
   return p;
+}
+
+function reference(): Reference {
+  return {
+    id: 'ref1',
+    name: 'cat.jpg',
+    blob: new Blob([new Uint8Array([5, 6, 7])], { type: 'image/jpeg' }),
+    mime: 'image/jpeg',
+    width: 40,
+    height: 30,
+    cx: 32,
+    cy: 24,
+    scale: 1.5,
+    rotation: 0.25,
+    opacity: 0.4,
+    visible: false,
+    above: true,
+    file: null,
+  };
 }
 
 async function bytesOf(b: Blob | null | undefined): Promise<number[]> {
@@ -89,6 +108,41 @@ describe('ProjectRepo', () => {
     expect(project.frames).toHaveLength(2);
   });
 
+  it('stores the reference photo and removes it when it goes away', async () => {
+    const fs = new MemoryFileStore();
+    const repo = new ProjectRepo(fs);
+    const p = sample();
+    p.reference = reference();
+    await repo.save(p);
+    expect(await fs.list(`projects/${p.id}/ref`)).toEqual(['ref1.jpg']);
+
+    const { project, missing } = await new ProjectRepo(fs).load(p.id);
+    expect(missing).toBe(0);
+    const { blob, file, ...rest } = project.reference!;
+    const { blob: _b, file: _f, ...expected } = reference();
+    expect(rest).toEqual(expected);
+    expect(file).toBe('ref1.jpg');
+    expect(blob.type).toBe('image/jpeg');
+    expect(await bytesOf(blob)).toEqual([5, 6, 7]);
+
+    p.reference = null;
+    await repo.save(p);
+    expect(await fs.list(`projects/${p.id}/ref`)).toEqual([]);
+    expect((await new ProjectRepo(fs).load(p.id)).project.reference).toBeNull();
+  });
+
+  it('counts a missing reference file and drops the reference', async () => {
+    const fs = new MemoryFileStore();
+    const repo = new ProjectRepo(fs);
+    const p = sample();
+    p.reference = reference();
+    await repo.save(p);
+    await fs.remove(`projects/${p.id}/ref/ref1.jpg`);
+    const { project, missing } = await new ProjectRepo(fs).load(p.id);
+    expect(missing).toBe(1);
+    expect(project.reference).toBeNull();
+  });
+
   it('assigns a new id when inserting a duplicate', async () => {
     const repo = new ProjectRepo(new MemoryFileStore());
     const p = sample();
@@ -113,6 +167,21 @@ describe('zip project files', () => {
     expect(project.frames[1].cells[l2].file).toBeNull();
     expect(project.audio!.mime).toBe('audio/wav');
     expect(project.audio!.blob.type).toBe('audio/wav');
+  });
+
+  it('carries the reference photo', async () => {
+    const p = sample();
+    p.reference = reference();
+    const { project, missing } = await projectFromZip(await projectToZip(p, null));
+    expect(missing).toBe(0);
+    expect(project.reference).toMatchObject({ id: 'ref1', mime: 'image/jpeg', scale: 1.5, above: true, file: null });
+    expect(project.reference!.blob.type).toBe('image/jpeg');
+    expect(await bytesOf(project.reference!.blob)).toEqual([5, 6, 7]);
+  });
+
+  it('opens projects without a reference photo', async () => {
+    const { project } = await projectFromZip(await projectToZip(sample(), null));
+    expect(project.reference).toBeNull();
   });
 
   it('rejects files that are not projects', async () => {

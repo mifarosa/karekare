@@ -103,6 +103,11 @@ export class PhotoContent implements PlaceContent {
     this.height = image.height;
   }
 
+  /** Takes ownership of an already decoded image. */
+  static from(image: AnyCanvas | ImageBitmap): PhotoContent {
+    return new PhotoContent(image);
+  }
+
   static async load(file: Blob, maxSide: number): Promise<PhotoContent> {
     const bmp = await createImageBitmap(file);
     const s = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
