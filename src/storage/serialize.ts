@@ -1,6 +1,6 @@
 import { uid } from '../model/ids';
 import { LIMITS, clamp, clampInt, newFrame, newLayer } from '../model/project';
-import type { AudioClip, Cell, Frame, Layer, Project, Rect } from '../model/types';
+import type { AudioClip, Cell, Frame, Layer, Project, Rect, Reference } from '../model/types';
 
 export const FORMAT = 'karekare';
 export const FORMAT_VERSION = 1;
@@ -31,7 +31,29 @@ export interface ProjectJSON {
   layers: Layer[];
   frames: { id: string; hold: number; cells: Record<string, CellJSON> }[];
   audio: { id: string; name: string; mime: string; file: string; offset: number; volume: number } | null;
+  reference?: ReferenceJSON | null;
 }
+
+export interface ReferenceJSON {
+  id: string;
+  name: string;
+  mime: string;
+  file: string;
+  width: number;
+  height: number;
+  cx: number;
+  cy: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  visible: boolean;
+  above: boolean;
+}
+
+export type FileKind = 'cell' | 'audio' | 'ref';
+
+/** Storage folder of each kind of file, inside a project folder or .zip. */
+export const FILE_DIRS: Record<FileKind, string> = { cell: 'cells', audio: 'audio', ref: 'ref' };
 
 /** Name of the file holding a cell's current encoding. */
 export function cellFileName(cell: Cell): string | null {
@@ -44,11 +66,23 @@ export function audioFileName(a: AudioClip): string {
   return `${a.id}.${ext}`;
 }
 
+const IMAGE_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+
+export function referenceFileName(r: Reference): string {
+  return `${r.id}.${IMAGE_EXT[r.mime] ?? 'img'}`;
+}
+
 /**
  * Serializes a project. Only cells with an encoded blob are included; `fileOf`
  * maps them to their stored path (or null to skip).
  */
-export function toJSON(p: Project, fileOf: (cell: Cell) => string | null, audioFile: string | null): ProjectJSON {
+export function toJSON(
+  p: Project,
+  fileOf: (cell: Cell) => string | null,
+  audioFile: string | null,
+  refFile: string | null = null,
+): ProjectJSON {
+  const r = p.reference;
   return {
     format: FORMAT,
     formatVersion: FORMAT_VERSION,
@@ -85,6 +119,24 @@ export function toJSON(p: Project, fileOf: (cell: Cell) => string | null, audioF
             volume: p.audio.volume,
           }
         : null,
+    reference:
+      r && refFile
+        ? {
+            id: r.id,
+            name: r.name,
+            mime: r.mime,
+            file: refFile,
+            width: r.width,
+            height: r.height,
+            cx: r.cx,
+            cy: r.cy,
+            scale: r.scale,
+            rotation: r.rotation,
+            opacity: r.opacity,
+            visible: r.visible,
+            above: r.above,
+          }
+        : null,
   };
 }
 
@@ -103,7 +155,7 @@ const safeFile = (v: unknown): string | null =>
  */
 export async function fromJSON(
   raw: unknown,
-  loadFile: (name: string, kind: 'cell' | 'audio') => Promise<Blob | null>,
+  loadFile: (name: string, kind: FileKind) => Promise<Blob | null>,
 ): Promise<{ project: Project; files: Map<Cell, string>; audioFile: string | null; missing: number }> {
   if (!raw || typeof raw !== 'object') throw new FormatError('Not a project');
   const j = raw as Partial<ProjectJSON>;
@@ -197,6 +249,9 @@ export async function fromJSON(
     }
   }
 
+  const reference = await parseReference(j.reference, width, height, loadFile);
+  if (reference === undefined) missing++;
+
   const project: Project = {
     id: safeId(j.id) ?? uid(),
     name: str(j.name, 'Animation', 80),
@@ -207,12 +262,47 @@ export async function fromJSON(
     layers,
     frames,
     audio,
+    reference: reference ?? null,
     created: num(j.created, Date.now()),
     modified: num(j.modified, Date.now()),
     lastFrame: clampInt(num(j.lastFrame, 0), 0, frames.length - 1),
     lastLayer: typeof j.lastLayer === 'string' && layerIds.has(j.lastLayer) ? j.lastLayer : null,
   };
   return { project, files, audioFile, missing };
+}
+
+/** Returns null when there is no reference and undefined when its file is missing. */
+async function parseReference(
+  v: unknown,
+  width: number,
+  height: number,
+  loadFile: (name: string, kind: FileKind) => Promise<Blob | null>,
+): Promise<Reference | null | undefined> {
+  if (!v || typeof v !== 'object') return null;
+  const rj = v as Partial<ReferenceJSON>;
+  const id = safeId(rj.id);
+  const file = safeFile(rj.file);
+  const mime = typeof rj.mime === 'string' && rj.mime in IMAGE_EXT ? rj.mime : null;
+  if (!id || !file || !mime) return null;
+  const blob = await loadFile(file, 'ref');
+  if (!blob) return undefined;
+  const side = Math.max(width, height);
+  return {
+    id,
+    name: str(rj.name, 'photo', 120),
+    blob: blob.type === mime ? blob : new Blob([blob], { type: mime }),
+    mime,
+    width: clampInt(num(rj.width, 1), 1, LIMITS.maxSize * 2),
+    height: clampInt(num(rj.height, 1), 1, LIMITS.maxSize * 2),
+    cx: clamp(num(rj.cx, width / 2), -side * 4, side * 5),
+    cy: clamp(num(rj.cy, height / 2), -side * 4, side * 5),
+    scale: clamp(num(rj.scale, 1), 0.001, 1000),
+    rotation: clamp(num(rj.rotation, 0), -100, 100),
+    opacity: clamp(num(rj.opacity, 0.5), 0.05, 1),
+    visible: rj.visible !== false,
+    above: rj.above === true,
+    file,
+  };
 }
 
 function parseRect(v: unknown, width: number, height: number): Rect | null {

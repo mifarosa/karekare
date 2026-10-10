@@ -33,7 +33,7 @@ export const defaults: AppSettings = {
   brush: { kind: 'pen', size: 6, opacity: 1, smoothing: 0.4 },
   eraser: { size: 24 },
   fill: { tolerance: 20, expand: 1, sampleAll: false },
-  onion: { enabled: true, before: 1, after: 0, opacity: 0.3 },
+  onion: { enabled: true, before: 1, after: 0, opacity: 0.3, colored: true },
   text: { font: 'rounded', outline: true },
   photoFit: 'cover',
   brushPresets: {},

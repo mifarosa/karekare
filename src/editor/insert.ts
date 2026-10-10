@@ -10,6 +10,8 @@ import { FONT_FAMILIES, PhotoContent, TEXT_BASE_SIZE, TextContent, type TextFont
 import type { FitMode } from './placement';
 import type { Placer } from './placer';
 import { MAX_PHOTO_FRAMES, photosToFrames } from './photos';
+import { referenceMenuSection } from './reference';
+import type { Stage } from './stage';
 import { segmented, toggle } from './toolbar';
 
 const PHOTO_ACCEPT = 'image/*';
@@ -71,8 +73,17 @@ export function startText(ed: Editor, placer: Placer): void {
   input.select();
 }
 
+export interface PhotoMenuContext {
+  ed: Editor;
+  placer: Placer;
+  stage: Stage;
+  onBusy: (busy: boolean) => void;
+  /** Stops playback before something is placed. */
+  onBeforePlace: () => void;
+}
+
 /** Menu of the toolbar's photo button. */
-export function photoMenu(anchor: HTMLElement, ed: Editor, placer: Placer, onBusy: (busy: boolean) => void): void {
+export function photoMenu(anchor: HTMLElement, { ed, placer, stage, onBusy, onBeforePlace }: PhotoMenuContext): void {
   const item = (name: Parameters<typeof icon>[0], label: string, run: () => void) =>
     h(
       'button',
@@ -92,9 +103,14 @@ export function photoMenu(anchor: HTMLElement, ed: Editor, placer: Placer, onBus
       'div',
       { class: 'menu' },
       h('div', { class: 'menu-title' }, t('addPhoto')),
-      item('image', t('photoOnFrame'), () => void placePhoto(ed, placer)),
+      item('image', t('photoOnFrame'), () => {
+        onBeforePlace();
+        void placePhoto(ed, placer);
+      }),
       item('images', t('photoAsFrames'), () => void addPhotoFrames(ed, onBusy)),
       h('p', { class: 'muted small menu-text' }, t('photoAsFramesHint')),
+      h('hr', { class: 'menu-sep' }),
+      referenceMenuSection(ed, placer, stage, onBeforePlace),
     ),
     { side: settings.leftHanded ? 'left' : 'right' },
   );

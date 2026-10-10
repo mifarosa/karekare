@@ -16,7 +16,7 @@ import {
   visibleCells,
 } from '../model/project';
 import { clip, union } from '../model/rect';
-import type { AudioClip, Cell, Frame, Layer, Project, Rect } from '../model/types';
+import type { AudioClip, Cell, Frame, Layer, Project, Rect, Reference } from '../model/types';
 
 export type ToolId = 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'hand';
 
@@ -45,7 +45,11 @@ export interface OnionSettings {
   before: number;
   after: number;
   opacity: number;
+  /** Red/green tint (keeping detail) instead of the frames' real colors. */
+  colored: boolean;
 }
+
+export type ReferenceProps = Partial<Pick<Reference, 'opacity' | 'visible' | 'above'>>;
 
 export type Notice = 'layerHidden' | 'layerLocked' | 'lastFrame' | 'lastLayer';
 
@@ -65,6 +69,8 @@ export interface EditorEvents {
   /** Name, fps, background or audio changed. */
   project: void;
   onion: void;
+  /** The reference photo was added, moved, changed or removed. */
+  reference: void;
   playback: void;
   /** Frame index shown during playback. */
   playhead: number;
@@ -697,6 +703,36 @@ export class Editor {
     if (props.offset !== undefined) a.offset = Math.round(props.offset);
     if (props.volume !== undefined) a.volume = clamp(props.volume, 0, 1);
     this.events.emit('project');
+    this.events.emit('dirty');
+  }
+
+  /**
+   * Adds, replaces, moves or removes the reference photo as one undo step.
+   * Display settings (opacity, visibility, position in the stack) are not
+   * undone, so undoing a move never flips them back.
+   */
+  setReference(next: Reference | null): void {
+    const prev = this.project.reference;
+    if (next === prev) return;
+    const apply = (r: Reference | null) => {
+      const cur = this.project.reference;
+      this.project.reference =
+        r && cur && r.id === cur.id && r !== cur ? { ...r, opacity: cur.opacity, visible: cur.visible, above: cur.above } : r;
+      this.project.modified = Date.now();
+      this.events.emit('reference');
+      this.events.emit('dirty');
+    };
+    apply(next);
+    this.history.push({ undo: () => apply(prev), redo: () => apply(next) });
+  }
+
+  setReferenceProps(props: ReferenceProps): void {
+    const r = this.project.reference;
+    if (!r) return;
+    if (props.opacity !== undefined) r.opacity = clamp(props.opacity, 0.05, 1);
+    if (props.visible !== undefined) r.visible = props.visible;
+    if (props.above !== undefined) r.above = props.above;
+    this.events.emit('reference');
     this.events.emit('dirty');
   }
 

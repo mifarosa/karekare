@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import type { Project } from '../model/types';
-import { FormatError, audioFileName, cellFileName, fromJSON, toJSON } from './serialize';
+import { FILE_DIRS, FormatError, audioFileName, cellFileName, fromJSON, referenceFileName, toJSON } from './serialize';
 
 const MAX_ENTRY = 256 * 1024 * 1024;
 const MAX_TOTAL = 1536 * 1024 * 1024;
@@ -21,8 +21,10 @@ export async function projectToZip(p: Project, thumb: Blob | null): Promise<Blob
   }
   const audioName = p.audio ? audioFileName(p.audio) : null;
   if (p.audio && audioName) files[`audio/${audioName}`] = [await bytes(p.audio.blob), { level: 0 }];
+  const refName = p.reference ? referenceFileName(p.reference) : null;
+  if (p.reference && refName) files[`ref/${refName}`] = [await bytes(p.reference.blob), { level: 0 }];
   if (thumb) files['thumb.png'] = [await bytes(thumb), { level: 0 }];
-  const json = toJSON(p, cellFileName, audioName);
+  const json = toJSON(p, cellFileName, audioName, refName);
   files['project.json'] = [strToU8(JSON.stringify(json, null, 1)), { level: 6 }];
   const out = zipSync(files);
   return new Blob([out as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
@@ -35,7 +37,7 @@ export async function projectFromZip(blob: Blob): Promise<{ project: Project; mi
   try {
     entries = unzipSync(await bytes(blob), {
       filter: (f) => {
-        const wanted = f.name === 'project.json' || /^(cells|audio)\/[^/]+$/.test(f.name);
+        const wanted = f.name === 'project.json' || /^(cells|audio|ref)\/[^/]+$/.test(f.name);
         if (!wanted) return false;
         total += f.originalSize;
         if (f.originalSize > MAX_ENTRY || total > MAX_TOTAL) throw new FormatError('Archive too large');
@@ -55,7 +57,7 @@ export async function projectFromZip(blob: Blob): Promise<{ project: Project; mi
     throw new FormatError('project.json is invalid');
   }
   const { project, missing } = await fromJSON(raw, async (name, kind) => {
-    const data = entries[`${kind === 'cell' ? 'cells' : 'audio'}/${name}`];
+    const data = entries[`${FILE_DIRS[kind]}/${name}`];
     if (!data) return null;
     return new Blob([data as Uint8Array<ArrayBuffer>], { type: kind === 'cell' ? 'image/png' : '' });
   });
@@ -64,5 +66,6 @@ export async function projectFromZip(blob: Blob): Promise<{ project: Project; mi
   }
   for (const f of project.frames) for (const id in f.cells) f.cells[id].file = null;
   if (project.audio) project.audio.file = null;
+  if (project.reference) project.reference.file = null;
   return { project, missing };
 }

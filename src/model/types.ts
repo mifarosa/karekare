@@ -65,6 +65,31 @@ export interface AudioClip {
   file: string | null;
 }
 
+/**
+ * A photo shown faintly on every frame to trace over. It is only a guide:
+ * never part of the drawing, never exported.
+ */
+export interface Reference {
+  id: string;
+  name: string;
+  blob: Blob;
+  mime: string;
+  /** Size of the decoded image, in its own pixels. */
+  width: number;
+  height: number;
+  /** Center on the canvas, scale and clockwise angle (radians). */
+  cx: number;
+  cy: number;
+  scale: number;
+  rotation: number;
+  /** 0..1 */
+  opacity: number;
+  visible: boolean;
+  /** Draw over the drawing instead of under it (useful with opaque fills). */
+  above: boolean;
+  file: string | null;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -76,6 +101,7 @@ export interface Project {
   layers: Layer[];
   frames: Frame[];
   audio: AudioClip | null;
+  reference: Reference | null;
   created: number;
   modified: number;
   /** Editor position to restore when reopening. */

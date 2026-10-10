@@ -1,5 +1,6 @@
 import { createCanvas, ctx2d } from '../core/canvas';
 import { drawFrame } from '../core/render';
+import type { Reference } from '../model/types';
 import { settings } from '../settings';
 import { h } from '../ui/dom';
 import type { Editor } from './editor';
@@ -7,6 +8,8 @@ import { EyedropperTool, FillTool, HandTool, StrokeTool, type Tool, type ToolPoi
 
 const ONION_BEFORE = '#e5484d';
 const ONION_AFTER = '#30a46c';
+/** How far toward white the lightest ghost pixels go (0..255 gray). */
+const ONION_LIGHT = '#a6a6a6';
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 32;
 
@@ -19,9 +22,9 @@ interface TrackedPointer {
 type Mode = 'idle' | 'draw' | 'gesture' | 'pan';
 
 /**
- * The drawing surface: stacked canvases (onion, layers below, live layer,
- * layers above, playback) inside a pannable/zoomable viewport, plus all
- * pointer input routing.
+ * The drawing surface: stacked canvases (reference photo, layers below,
+ * onion, live layer, layers above, playback) inside a pannable/zoomable
+ * viewport, plus all pointer input routing.
  */
 export class Stage {
   readonly el: HTMLElement;
@@ -33,6 +36,11 @@ export class Stage {
   private play: HTMLCanvasElement;
   private tmp: HTMLCanvasElement;
   private cursor: HTMLElement;
+  /** Created when the project first gets a reference photo. */
+  private ref: HTMLCanvasElement | null = null;
+  private refImage: { id: string; img: ImageBitmap } | null = null;
+  private refLoading = '';
+  private refHidden = false;
 
   zoom = 1;
   panX = 0;
@@ -120,6 +128,7 @@ export class Stage {
       ev.on('live', () => this.renderAll()),
       ev.on('layers', () => this.renderAll()),
       ev.on('onion', () => this.renderOnion()),
+      ev.on('reference', () => this.renderReference()),
       ev.on('project', () => this.renderPaper()),
       ev.on('playback', () => this.renderPlaybackMode()),
       ev.on('playhead', (i) => this.renderPlayFrame(i)),
@@ -129,6 +138,7 @@ export class Stage {
       }),
     );
     this.renderPaper();
+    this.renderReference();
     this.updateCursorStyle();
   }
 
@@ -234,20 +244,37 @@ export class Stage {
     ctx.clearRect(0, 0, width, height);
     const o = ed.onion;
     if (!o.enabled || ed.playing || !ed.layer.visible) return;
-    // Tinted drawings of the current layer on neighbouring frames, placed
-    // right under the live layer so opaque backgrounds never hide them.
+    // Drawings of the current layer on neighbouring frames, placed right
+    // under the live layer so opaque backgrounds never hide them.
     const draw = (index: number, color: string, alpha: number) => {
       const cell = ed.project.frames[index]?.cells[ed.layerId];
       const src = cell ? ed.store.source(cell) : null;
       if (!src || alpha <= 0) return;
+      const { x, y, w, h: hgt } = src.rect;
       const t = ctx2d(this.tmp);
       t.globalCompositeOperation = 'source-over';
       t.clearRect(0, 0, width, height);
-      t.drawImage(src.src, src.rect.x, src.rect.y);
-      t.globalCompositeOperation = 'source-in';
-      t.fillStyle = color;
-      t.fillRect(0, 0, width, height);
-      t.globalCompositeOperation = 'source-over';
+      t.drawImage(src.src, x, y);
+      if (o.colored) {
+        // Duotone: dark pixels take the tint and light ones fade toward
+        // white, so lines turn red/green while photos and filled shapes
+        // keep their detail. Gray first (luminance only)...
+        t.globalCompositeOperation = 'saturation';
+        t.fillStyle = '#000000';
+        t.fillRect(x, y, w, hgt);
+        // ...then squeeze the range so highlights stay a little tinted...
+        t.globalCompositeOperation = 'multiply';
+        t.fillStyle = ONION_LIGHT;
+        t.fillRect(x, y, w, hgt);
+        // ...map black to the tint color...
+        t.globalCompositeOperation = 'screen';
+        t.fillStyle = color;
+        t.fillRect(x, y, w, hgt);
+        // ...and bring back the original transparency.
+        t.globalCompositeOperation = 'destination-in';
+        t.drawImage(src.src, x, y);
+        t.globalCompositeOperation = 'source-over';
+      }
       ctx.globalAlpha = alpha;
       ctx.drawImage(this.tmp, 0, 0);
     };
@@ -255,6 +282,69 @@ export class Stage {
     for (let k = o.before; k >= 1; k--) draw(ed.frameIndex - k, ONION_BEFORE, o.opacity * (1 - (k - 1) / (o.before + 1)));
     for (let k = o.after; k >= 1; k--) draw(ed.frameIndex + k, ONION_AFTER, o.opacity * (1 - (k - 1) / (o.after + 1)));
     ctx.globalAlpha = 1;
+  }
+
+  /** Hides the reference photo (e.g. while it is being repositioned). */
+  setReferenceHidden(hidden: boolean): void {
+    this.refHidden = hidden;
+    this.renderReference();
+  }
+
+  private renderReference(): void {
+    const r = this.ed.project.reference;
+    if (!r) {
+      this.refImage?.img.close();
+      this.refImage = null;
+      if (this.ref) this.ref.hidden = true;
+      return;
+    }
+    if (this.refImage?.id !== r.id) {
+      void this.loadReference(r);
+      return;
+    }
+    const { width, height } = this.ed.project;
+    if (!this.ref) {
+      this.ref = createCanvas(width, height) as HTMLCanvasElement;
+      this.ref.className = 'layer-canvas reference';
+    }
+    const canvas = this.ref;
+    // Under every layer, or over all of them when fills would hide it.
+    if (r.above) this.above.after(canvas);
+    else this.paper.after(canvas);
+    canvas.hidden = !r.visible || this.refHidden;
+    canvas.style.opacity = String(r.opacity);
+    const ctx = ctx2d(canvas);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.translate(r.cx, r.cy);
+    ctx.rotate(r.rotation);
+    ctx.scale(r.scale, r.scale);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.refImage.img, -r.width / 2, -r.height / 2, r.width, r.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  private async loadReference(r: Reference): Promise<void> {
+    if (this.refLoading === r.id) return;
+    this.refLoading = r.id;
+    let img: ImageBitmap | null = null;
+    try {
+      img = await createImageBitmap(r.blob);
+    } catch (err) {
+      console.warn('Reference photo could not be decoded', err);
+    }
+    if (this.refLoading !== r.id) {
+      img?.close();
+      return;
+    }
+    this.refLoading = '';
+    if (!img || this.ed.project.reference?.id !== r.id) {
+      img?.close();
+      return;
+    }
+    this.refImage?.img.close();
+    this.refImage = { id: r.id, img };
+    this.renderReference();
   }
 
   private renderPlaybackMode(): void {
@@ -515,5 +605,8 @@ export class Stage {
   dispose(): void {
     this.resizeObs.disconnect();
     for (const off of this.offs) off();
+    this.refLoading = '';
+    this.refImage?.img.close();
+    this.refImage = null;
   }
 }
