@@ -1,11 +1,11 @@
 import { brushDef } from '../core/brushes';
 import { t, type StringKey } from '../i18n';
 import { saveSettings, settings } from '../settings';
-import { clear, h } from '../ui/dom';
+import { append, clear, h } from '../ui/dom';
 import { icon, type IconName } from '../ui/icons';
 import { closePopover, popover } from '../ui/popover';
 import { BRUSH_NAMES, brushPreview, openBrushPicker } from './brushPicker';
-import type { Editor, ToolId } from './editor';
+import { MAX_PIXEL_SIZE, type Editor, type ToolId } from './editor';
 
 export const PALETTE = [
   '#1f2430', '#5b6170', '#a0a6b4', '#ffffff',
@@ -50,8 +50,8 @@ export class Toolbar {
           title: label,
           'aria-label': label,
           onclick: () => {
-            // Tapping the brush again opens the brush picker.
-            if (tool.id === 'brush' && ed.tool === 'brush') openBrushPicker(b, ed, settings.leftHanded ? 'left' : 'right');
+            // Tapping the brush again opens the brush picker (pixel art has one pen).
+            if (tool.id === 'brush' && ed.tool === 'brush' && !ed.project.pixel) openBrushPicker(b, ed, settings.leftHanded ? 'left' : 'right');
             else ed.setTool(tool.id);
           },
         },
@@ -154,14 +154,34 @@ export class OptionsBar {
   }
 
   private render(): void {
-    const ed = this.ed;
+    // Overlays hosted in the strip (the placer bar) outlive tool changes.
+    const overlays = [...this.el.querySelectorAll(':scope > [data-overlay]')];
     clear(this.el);
+    this.renderTool();
+    this.el.append(...overlays);
+  }
+
+  private renderTool(): void {
+    const ed = this.ed;
     const persist = () => {
       settings.brush = { ...ed.brush };
       settings.eraser = { ...ed.eraser };
       settings.fill = { ...ed.fill };
+      settings.pixel = { ...ed.pixel };
       saveSettings();
     };
+    if (ed.project.pixel && (ed.tool === 'brush' || ed.tool === 'eraser')) {
+      const erase = ed.tool === 'eraser';
+      if (!erase) this.el.append(h('span', { class: 'pixel-chip' }, icon('grid', 18), h('span', null, t('pixelPen'))));
+      this.el.append(
+        slider(t('size'), 1, MAX_PIXEL_SIZE, erase ? ed.pixel.eraser : ed.pixel.brush, (v) => {
+          if (erase) ed.pixel.eraser = v;
+          else ed.pixel.brush = v;
+          persist();
+        }, (v) => `${v}px`),
+      );
+      return;
+    }
     switch (ed.tool) {
       case 'brush': {
         const chip: HTMLButtonElement = h(
@@ -202,20 +222,23 @@ export class OptionsBar {
         );
         break;
       case 'fill':
-        this.el.append(
+        append(this.el, [
           slider(t('tolerance'), 0, 100, ed.fill.tolerance, (v) => {
             ed.fill.tolerance = v;
             persist();
           }, (v) => `${v}%`),
-          slider(t('fillExpand'), 0, 4, ed.fill.expand, (v) => {
-            ed.fill.expand = v;
-            persist();
-          }, (v) => `${v}px`),
+          // Pixel art fills never grow under lines.
+          ed.project.pixel
+            ? null
+            : slider(t('fillExpand'), 0, 4, ed.fill.expand, (v) => {
+                ed.fill.expand = v;
+                persist();
+              }, (v) => `${v}px`),
           toggle(t('sampleAllLayers'), ed.fill.sampleAll, (v) => {
             ed.fill.sampleAll = v;
             persist();
           }),
-        );
+        ]);
         break;
       case 'eyedropper':
         this.el.append(h('span', { class: 'hint' }, t('hintEyedropper')));

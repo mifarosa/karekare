@@ -1,7 +1,8 @@
 import { t } from '../i18n';
 import { createProject } from '../model/project';
-import type { Project } from '../model/types';
-import { h } from '../ui/dom';
+import type { Project, ProjectKind } from '../model/types';
+import { saveSettings, settings } from '../settings';
+import { clear, h } from '../ui/dom';
 import { openDialog } from '../ui/dialog';
 import { segmented } from '../editor/toolbar';
 
@@ -20,18 +21,33 @@ const SIZES: SizePreset[] = [
   { id: 'classic', label: 'sizeClassic', width: 960, height: 720 },
 ];
 
+/** Pixel art canvases: every pixel is drawn as a big square. */
+const PIXEL_SIZES: SizePreset[] = [
+  { id: 'p16', label: 'sizePixelTiny', width: 16, height: 16 },
+  { id: 'p32', label: 'sizePixelSmall', width: 32, height: 32 },
+  { id: 'p64', label: 'sizePixelMedium', width: 64, height: 64 },
+  { id: 'p128', label: 'sizePixelLarge', width: 128, height: 128 },
+  { id: 'p64w', label: 'sizeWide', width: 64, height: 36 },
+];
+
 const BACKGROUNDS = ['#ffffff', '#fdf6e3', '#e8f4ff', '#1f2430'];
 
-export function newProjectDialog(defaultName: string): Promise<Project | null> {
+export function newProjectDialog(defaultName: string, kind: ProjectKind): Promise<Project | null> {
   return new Promise((resolve) => {
     let result: Project | null = null;
-    let size = SIZES[0];
+    let pixel = settings.newPixel;
+    let size = pixel ? PIXEL_SIZES[1] : SIZES[0];
     let fps = 12;
     let background = BACKGROUNDS[0];
 
     const name = h('input', { class: 'input', type: 'text', value: defaultName, maxlength: 80 });
     const sizes = h('div', { class: 'size-cards', role: 'radiogroup' });
-    for (const s of SIZES) {
+    const pixelHint = h('p', { class: 'muted small', hidden: !pixel }, t('pixelHint'));
+    const renderSizes = () => {
+      clear(sizes);
+      for (const s of pixel ? PIXEL_SIZES : SIZES) sizes.append(sizeCard(s));
+    };
+    const sizeCard = (s: SizePreset) => {
       const ratio = s.width / s.height;
       const shape = h('span', {
         class: 'size-shape',
@@ -57,8 +73,22 @@ export function newProjectDialog(defaultName: string): Promise<Project | null> {
         h('strong', null, t(s.label)),
         h('small', null, `${s.width}×${s.height}`),
       );
-      sizes.append(card);
-    }
+      return card;
+    };
+    renderSizes();
+    const style = segmented(
+      [
+        { value: 'normal', label: t('styleNormal') },
+        { value: 'pixel', label: t('stylePixel') },
+      ],
+      pixel ? 'pixel' : 'normal',
+      (v) => {
+        pixel = v === 'pixel';
+        size = pixel ? PIXEL_SIZES[1] : SIZES[0];
+        pixelHint.hidden = !pixel;
+        renderSizes();
+      },
+    );
     const bgs = h('div', { class: 'bg-swatches', role: 'radiogroup' });
     for (const c of BACKGROUNDS) {
       const b = h('button', {
@@ -76,28 +106,37 @@ export function newProjectDialog(defaultName: string): Promise<Project | null> {
     }
 
     const create = () => {
+      settings.newPixel = pixel;
+      saveSettings();
       result = createProject(
-        { name: name.value.trim() || defaultName, width: size.width, height: size.height, fps, background },
+        { name: name.value.trim() || defaultName, width: size.width, height: size.height, fps, background, kind, pixel },
         `${t('layer')} 1`,
       );
     };
+    const animation = kind === 'animation';
     const d = openDialog({
-      title: t('newAnimation'),
+      title: animation ? t('newAnimation') : t('newImage'),
       wide: true,
       body: [
         h('label', { class: 'field' }, h('span', { class: 'opt-label' }, t('projectName')), name),
+        h('div', { class: 'field' }, h('span', { class: 'opt-label' }, t('projectStyle')), style),
+        pixelHint,
         h('div', { class: 'field-col' }, h('span', { class: 'opt-label' }, t('canvasSize')), sizes),
-        h(
-          'div',
-          { class: 'field' },
-          h('span', { class: 'opt-label' }, t('fpsTitle')),
-          segmented(
-            [6, 8, 12, 15, 24].map((v) => ({ value: String(v), label: String(v) })),
-            String(fps),
-            (v) => (fps = Number(v)),
-          ),
-        ),
-        h('p', { class: 'muted small' }, t('fpsHint')),
+        ...(animation
+          ? [
+              h(
+                'div',
+                { class: 'field' },
+                h('span', { class: 'opt-label' }, t('fpsTitle')),
+                segmented(
+                  [6, 8, 12, 15, 24].map((v) => ({ value: String(v), label: String(v) })),
+                  String(fps),
+                  (v) => (fps = Number(v)),
+                ),
+              ),
+              h('p', { class: 'muted small' }, t('fpsHint')),
+            ]
+          : []),
         h('div', { class: 'field' }, h('span', { class: 'opt-label' }, t('background')), bgs),
       ],
       actions: [{ label: t('cancel') }, { label: t('create'), kind: 'primary', run: create }],

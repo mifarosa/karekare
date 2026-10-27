@@ -1,4 +1,4 @@
-import type { BrushSettings, EraserSettings, FillSettings, OnionSettings } from './editor/editor';
+import type { BrushSettings, EraserSettings, FillSettings, OnionSettings, PixelSettings } from './editor/editor';
 import type { TextFont } from './editor/placeContent';
 import type { FitMode } from './editor/placement';
 import { isBrushKind } from './core/brushes';
@@ -15,6 +15,9 @@ export interface AppSettings {
   eraser: EraserSettings;
   fill: FillSettings;
   onion: OnionSettings;
+  pixel: PixelSettings;
+  /** Style picked last in the new project dialog. */
+  newPixel: boolean;
   text: { font: TextFont; outline: boolean };
   photoFit: FitMode;
   /** Size and opacity remembered per brush. */
@@ -34,6 +37,8 @@ export const defaults: AppSettings = {
   eraser: { size: 24 },
   fill: { tolerance: 20, expand: 1, sampleAll: false },
   onion: { enabled: true, before: 1, after: 0, opacity: 0.3, colored: true },
+  pixel: { brush: 1, eraser: 1, grid: true },
+  newPixel: false,
   text: { font: 'rounded', outline: true },
   photoFit: 'cover',
   brushPresets: {},

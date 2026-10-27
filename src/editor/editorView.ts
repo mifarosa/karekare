@@ -13,7 +13,7 @@ import { closePopover, popover } from '../ui/popover';
 import { toast } from '../ui/toast';
 import { AutoSaver, type SaveState } from './autosave';
 import { openAudioPopover, openHelpDialog, openSettingsDialog } from './dialogs';
-import { Editor, type Notice, type ToolId } from './editor';
+import { Editor, MAX_PIXEL_SIZE, type Notice, type ToolId } from './editor';
 import { openExportDialog } from './exportDialog';
 import { photoMenu, startText } from './insert';
 import { LayersPanel } from './layersPanel';
@@ -51,6 +51,7 @@ export class EditorView {
   private saveDot: HTMLElement;
   private titleBtn: HTMLButtonElement;
   private zoomLabel: HTMLElement;
+  private exportLabel: HTMLElement;
   private loading: HTMLElement;
   private offs: (() => void)[] = [];
   private prevTool: ToolId = 'brush';
@@ -67,6 +68,7 @@ export class EditorView {
       eraser: settings.eraser,
       fill: settings.fill,
       onion: settings.onion,
+      pixel: settings.pixel,
       layerBaseName: t('layer'),
     }));
     this.saver = new AutoSaver(ed, repo, this.encoder);
@@ -97,10 +99,11 @@ export class EditorView {
 
     this.undoBtn = btn('undo', `${t('undo')} (Ctrl+Z)`, () => this.undo());
     this.redoBtn = btn('redo', `${t('redo')} (Ctrl+Shift+Z)`, () => this.redo());
-    this.onionBtn = btn('onion', `${t('onionToggle')} (O)`, () => this.toggleOnion());
+    this.onionBtn = btn('onion', `${t('onionToggle')} (O)`, () => this.toggleOnion(), 'onion-btn');
     this.saveDot = h('span', { class: 'save-state' });
     this.titleBtn = h('button', { class: 'title-btn', title: t('rename'), onclick: () => void this.rename() }, project.name);
     this.zoomLabel = h('button', { class: 'zoom-label', title: t('fitScreen'), onclick: () => this.stage.fit() });
+    this.exportLabel = h('span', null, t('export'));
     this.loading = h('div', { class: 'loading-badge' }, t('loading'));
 
     const topbar = h(
@@ -121,7 +124,7 @@ export class EditorView {
         btn('layers', t('layers'), () => this.toggleLayers(), 'layers-toggle'),
         btn('more', t('more'), (e) => this.moreMenu(e.currentTarget as HTMLElement)),
         btn('help', t('help'), () => openHelpDialog(), 'help-btn'),
-        h('button', { class: 'btn btn-primary export-btn', onclick: () => this.export() }, icon('download', 18), h('span', null, t('export'))),
+        h('button', { class: 'btn btn-primary export-btn', onclick: () => this.export() }, icon('download', 18), this.exportLabel),
       ),
     );
 
@@ -136,6 +139,7 @@ export class EditorView {
         this.zoomLabel,
         btn('zoomIn', t('zoomIn'), () => this.stage.zoomBy(1.25)),
         btn('fit', t('fitScreen'), () => this.stage.fit()),
+        project.pixel ? this.gridButton() : null,
       ),
       this.loading,
     );
@@ -152,6 +156,7 @@ export class EditorView {
       this.timeline.el,
     );
     this.applyAppSettings();
+    this.applyKind();
 
     // Wiring
     this.stage.onPick = (color, final) => {
@@ -174,6 +179,7 @@ export class EditorView {
       ev.on('onion', () => this.onionBtn.classList.toggle('active', ed.onion.enabled)),
       ev.on('project', () => {
         this.titleBtn.textContent = ed.project.name;
+        this.applyKind();
       }),
       ev.on('notice', (n) => toast(t(NOTICE_TEXT[n]))),
       ev.on('tool', () => {
@@ -207,6 +213,52 @@ export class EditorView {
     this.el.classList.toggle('no-layers', !settings.showLayers);
   }
 
+  /** Drawings hide everything about time; pixel art gets its own look. */
+  private applyKind(): void {
+    const p = this.ed.project;
+    const image = p.kind === 'image';
+    const wasImage = this.el.classList.contains('kind-image');
+    this.el.classList.toggle('kind-image', image);
+    this.el.classList.toggle('pixel-art', p.pixel);
+    this.exportLabel.textContent = image ? t('saveImage') : t('export');
+    // The canvas area grows or shrinks with the timeline.
+    if (wasImage !== image) requestAnimationFrame(() => this.stage.fit());
+  }
+
+  private gridButton(): HTMLButtonElement {
+    const b: HTMLButtonElement = h(
+      'button',
+      {
+        class: `icon-btn grid-btn ${this.ed.pixel.grid ? 'active' : ''}`,
+        title: t('pixelGrid'),
+        'aria-label': t('pixelGrid'),
+        'aria-pressed': String(this.ed.pixel.grid),
+        onclick: () => {
+          const on = !this.ed.pixel.grid;
+          this.ed.pixel.grid = on;
+          settings.pixel = { ...this.ed.pixel };
+          saveSettings();
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-pressed', String(on));
+          this.stage.updateGrid();
+        },
+      },
+      icon('grid'),
+    );
+    return b;
+  }
+
+  private convertKind(): void {
+    const ed = this.ed;
+    if (ed.isImage) {
+      ed.setKind('animation');
+      toast(t('convertedToAnimation'));
+      return;
+    }
+    this.player.stop();
+    if (ed.setKind('image')) toast(t('convertedToImage'));
+  }
+
   private toggleLayers(): void {
     if (matchMedia('(max-width: 760px)').matches) {
       // Narrow screens show the panel as a temporary overlay.
@@ -220,6 +272,7 @@ export class EditorView {
   }
 
   private toggleOnion(): void {
+    if (this.ed.isImage) return;
     const enabled = !this.ed.onion.enabled;
     this.ed.setOnion({ enabled });
     settings.onion = { ...this.ed.onion };
@@ -284,6 +337,7 @@ export class EditorView {
   }
 
   private moreMenu(anchor: HTMLElement): void {
+    const image = this.ed.isImage;
     const item = (name: IconName, label: string, run: () => void) =>
       h(
         'button',
@@ -309,8 +363,11 @@ export class EditorView {
           }),
         ),
         item('download', t('saveProjectFile'), () => void this.saveZip()),
-        item('music', t('sound'), () => openAudioPopover(anchor, this.ed, this.audio)),
-        item('eraser', t('clearLayerOnFrame'), () => this.ed.clearCell()),
+        image ? null : item('music', t('sound'), () => openAudioPopover(anchor, this.ed, this.audio)),
+        item('eraser', image ? t('clearLayer') : t('clearLayerOnFrame'), () => this.ed.clearCell()),
+        image ? item('animation', t('convertToAnimation'), () => this.convertKind()) : null,
+        // Only one-frame animations can become drawings.
+        !image && this.ed.project.frames.length === 1 ? item('image', t('convertToImage'), () => this.convertKind()) : null,
         item('help', t('help'), () => openHelpDialog()),
       ),
       { side: 'bottom' },
@@ -364,11 +421,13 @@ export class EditorView {
     else if (key === 'g') ed.setTool('fill');
     else if (key === 'i') ed.setTool('eyedropper');
     else if (key === 'h') ed.setTool('hand');
-    else if (key === 'o') this.toggleOnion();
     else if (key === 'r') handled = toggleReference(ed);
+    else if (key === 't') this.addText();
+    // Frames, onion skin and playback only exist in animations.
+    else if (ed.isImage && ['o', 'n', 'd', 'enter', 'arrowleft', 'arrowright', ',', '.'].includes(key)) handled = false;
+    else if (key === 'o') this.toggleOnion();
     else if (key === 'n') ed.addFrame();
     else if (key === 'd') ed.duplicateFrame();
-    else if (key === 't') this.addText();
     else if (e.key === 'Enter') this.player.toggle();
     else if (e.key === 'ArrowLeft' || e.key === ',') this.stepFrame(-1);
     else if (e.key === 'ArrowRight' || e.key === '.') this.stepFrame(1);
@@ -399,6 +458,14 @@ export class EditorView {
 
   private resize(dir: number): void {
     const ed = this.ed;
+    if (ed.project.pixel && (ed.tool === 'brush' || ed.tool === 'eraser')) {
+      const key = ed.tool === 'eraser' ? 'eraser' : 'brush';
+      ed.pixel[key] = Math.min(MAX_PIXEL_SIZE, Math.max(1, ed.pixel[key] + dir));
+      settings.pixel = { ...ed.pixel };
+      saveSettings();
+      ed.events.emit('tool');
+      return;
+    }
     const step = (v: number) => Math.max(1, Math.round(v * (dir > 0 ? 1.2 : 1 / 1.2) + dir));
     if (ed.tool === 'eraser') ed.eraser.size = Math.min(200, step(ed.eraser.size));
     else ed.brush.size = Math.min(120, step(ed.brush.size));

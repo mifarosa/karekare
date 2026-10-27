@@ -46,3 +46,8 @@ export function parseColor(hex: string): [number, number, number] {
 export function toHex(r: number, g: number, b: number): string {
   return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 }
+
+/** Makes every pixel either fully opaque or fully transparent (pixel art). */
+export function hardenAlpha(data: Uint8ClampedArray): void {
+  for (let i = 3; i < data.length; i += 4) data[i] = data[i] >= 128 ? 255 : 0;
+}

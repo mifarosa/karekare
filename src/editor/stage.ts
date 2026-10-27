@@ -1,4 +1,5 @@
 import { createCanvas, ctx2d } from '../core/canvas';
+import { stampOrigin } from '../core/pixelStroke';
 import { drawFrame } from '../core/render';
 import type { Reference } from '../model/types';
 import { settings } from '../settings';
@@ -11,7 +12,10 @@ const ONION_AFTER = '#30a46c';
 /** How far toward white the lightest ghost pixels go (0..255 gray). */
 const ONION_LIGHT = '#a6a6a6';
 const MIN_ZOOM = 0.05;
-const MAX_ZOOM = 32;
+// Tiny pixel art canvases need to get big.
+const MAX_ZOOM = 64;
+/** Pixel grid shows once a pixel is at least this many screen pixels wide. */
+const GRID_MIN_ZOOM = 6;
 
 interface TrackedPointer {
   x: number;
@@ -36,6 +40,7 @@ export class Stage {
   private play: HTMLCanvasElement;
   private tmp: HTMLCanvasElement;
   private cursor: HTMLElement;
+  private grid: HTMLElement;
   /** Created when the project first gets a reference photo. */
   private ref: HTMLCanvasElement | null = null;
   private refImage: { id: string; img: ImageBitmap } | null = null;
@@ -84,6 +89,7 @@ export class Stage {
     this.tmp = createCanvas(width, height) as HTMLCanvasElement;
     ed.liveCanvas.className = 'layer-canvas live';
     this.paper = h('div', { class: 'paper' });
+    this.grid = h('div', { class: 'pixel-grid', hidden: true });
     this.stageEl = h(
       'div',
       { class: 'stage', style: { width: `${width}px`, height: `${height}px` } },
@@ -95,7 +101,8 @@ export class Stage {
       this.play,
     );
     this.cursor = h('div', { class: 'brush-cursor' });
-    this.el = h('div', { class: 'viewport' }, this.stageEl, this.cursor);
+    // The grid lives outside the scaled stage so its lines stay one screen pixel thin.
+    this.el = h('div', { class: 'viewport' }, this.stageEl, this.grid, this.cursor);
 
     this.tools = {
       brush: new StrokeTool(ed, false),
@@ -176,9 +183,23 @@ export class Stage {
 
   private apply(): void {
     this.stageEl.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
-    this.stageEl.classList.toggle('pixelated', this.zoom >= 3);
+    this.stageEl.classList.toggle('pixelated', this.zoom >= 3 || this.ed.project.pixel);
+    this.updateGrid();
     this.onZoom();
     for (const fn of this.viewListeners) fn();
+  }
+
+  /** Shows the pixel grid when it is on and pixels are big enough to see it. */
+  updateGrid(): void {
+    const ed = this.ed;
+    const show = ed.project.pixel && ed.pixel.grid && !ed.playing && this.zoom >= GRID_MIN_ZOOM;
+    this.grid.hidden = !show;
+    if (!show) return;
+    const s = this.grid.style;
+    s.transform = `translate(${this.panX}px, ${this.panY}px)`;
+    s.width = `${ed.project.width * this.zoom}px`;
+    s.height = `${ed.project.height * this.zoom}px`;
+    s.backgroundSize = `${this.zoom}px ${this.zoom}px`;
   }
 
   /** Called whenever zoom or pan changes. */
@@ -243,7 +264,7 @@ export class Stage {
     const ctx = ctx2d(this.onion);
     ctx.clearRect(0, 0, width, height);
     const o = ed.onion;
-    if (!o.enabled || ed.playing || !ed.layer.visible) return;
+    if (!o.enabled || ed.playing || !ed.layer.visible || ed.isImage) return;
     // Drawings of the current layer on neighbouring frames, placed right
     // under the live layer so opaque backgrounds never hide them.
     const draw = (index: number, color: string, alpha: number) => {
@@ -350,6 +371,7 @@ export class Stage {
   private renderPlaybackMode(): void {
     const playing = this.ed.playing;
     this.stageEl.classList.toggle('playing', playing);
+    this.updateGrid();
     if (playing) {
       this.cancelDraw();
       this.renderPlayFrame(this.ed.frameIndex);
@@ -590,10 +612,22 @@ export class Stage {
       this.hideCursor();
       return;
     }
+    const s = this.cursor.style;
+    const pixel = this.ed.project.pixel;
+    this.cursor.classList.toggle('square', pixel);
+    s.display = 'block';
+    if (pixel) {
+      // Outline of the exact pixels the pen will paint.
+      const n = tool === 'eraser' ? this.ed.pixel.eraser : this.ed.pixel.brush;
+      const p = this.toProject(e.clientX, e.clientY);
+      const [x, y] = stampOrigin(p.x, p.y, n);
+      const v = this.toViewport(x, y);
+      s.width = s.height = `${n * this.zoom}px`;
+      s.transform = `translate(${v.x}px, ${v.y}px)`;
+      return;
+    }
     const size = (tool === 'eraser' ? this.ed.eraser.size : this.ed.brush.size) * this.zoom;
     const r = this.el.getBoundingClientRect();
-    const s = this.cursor.style;
-    s.display = 'block';
     s.width = s.height = `${Math.max(4, size)}px`;
     s.transform = `translate(${e.clientX - r.left}px, ${e.clientY - r.top}px) translate(-50%, -50%)`;
   }

@@ -127,6 +127,7 @@ export class LayersPanel {
       const entry = this.rows.get(layer.id);
       if (!entry) continue;
       const ctx = ctx2d(entry.thumb);
+      ctx.imageSmoothingEnabled = !p.pixel;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, size, size);
       ctx.fillStyle = p.background;

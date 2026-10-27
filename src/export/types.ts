@@ -25,6 +25,8 @@ export interface ExportJob {
   height: number;
   /** Output size multiplier. */
   scale: number;
+  /** Pixel art: enlarge with hard square pixels instead of smoothing. */
+  pixelated: boolean;
   fps: number;
   /** null = transparent (PNG only). */
   background: string | null;

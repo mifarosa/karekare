@@ -1,6 +1,6 @@
 import { lang, setLang, t } from '../i18n';
 import { REPO_URL } from '../links';
-import type { ProjectSummary } from '../model/types';
+import type { ProjectKind, ProjectSummary } from '../model/types';
 import { installHint, onInstallChange } from '../pwa';
 import type { ProjectRepo } from '../storage/repo';
 import { FormatError } from '../storage/serialize';
@@ -65,7 +65,8 @@ export class HomeView {
       h(
         'div',
         { class: 'home-actions' },
-        h('button', { class: 'big-btn primary', onclick: () => void this.create() }, icon('plus', 28), h('span', null, t('newAnimation'))),
+        h('button', { class: 'big-btn primary', onclick: () => void this.create('animation') }, icon('plus', 28), h('span', null, t('newAnimation'))),
+        h('button', { class: 'big-btn drawing', onclick: () => void this.create('image') }, icon('brush', 26), h('span', null, t('newImage'))),
         h('button', { class: 'big-btn', onclick: () => void this.importZip() }, icon('open', 26), h('span', null, t('openProjectFile'))),
       ),
       h('h2', { class: 'section-title' }, t('myAnimations')),
@@ -112,14 +113,26 @@ export class HomeView {
   }
 
   private card(p: ProjectSummary): HTMLElement {
-    const img = h('img', { class: 'card-thumb', alt: '', loading: 'lazy' });
+    const img = h('img', { class: `card-thumb ${p.pixel ? 'pixel' : ''}`, alt: '', loading: 'lazy' });
     void this.repo.readThumb(p.id).then((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       this.urls.push(url);
       img.src = url;
     });
-    const thumbBox = h('div', { class: 'card-thumb-box', style: { aspectRatio: `${p.width} / ${p.height}` } }, img);
+    const badges = h(
+      'span',
+      { class: 'card-badges' },
+      p.kind === 'image' ? h('span', { class: 'card-badge', title: t('kindImage') }, icon('brush', 14)) : null,
+      p.pixel ? h('span', { class: 'card-badge', title: t('stylePixel') }, icon('grid', 14)) : null,
+    );
+    // Wider than the 4:3 slot: fill its width; otherwise fill its height.
+    const fit = p.width / p.height >= 4 / 3 ? { width: '100%' } : { height: '100%' };
+    const thumbBox = h('div', { class: 'card-thumb-box', style: { aspectRatio: `${p.width} / ${p.height}`, ...fit } }, img, badges);
+    const details =
+      p.kind === 'image'
+        ? `${t('kindImage')} · ${p.width}×${p.height} · ${relativeTime(p.modified)}`
+        : `${t('framesCount', { n: p.frames })} · ${p.fps} fps · ${relativeTime(p.modified)}`;
     const more = h(
       'button',
       {
@@ -144,7 +157,7 @@ export class HomeView {
           'div',
           { class: 'card-info' },
           h('strong', null, p.name),
-          h('small', null, `${t('framesCount', { n: p.frames })} · ${p.fps} fps · ${relativeTime(p.modified)}`),
+          h('small', null, details),
         ),
       ),
       more,
@@ -212,9 +225,10 @@ export class HomeView {
     );
   }
 
-  private async create(): Promise<void> {
-    const count = (await this.repo.list().catch(() => [])).length;
-    const project = await newProjectDialog(`${t('defaultProjectName')} ${count + 1}`);
+  private async create(kind: ProjectKind): Promise<void> {
+    const count = (await this.repo.list().catch(() => [])).filter((p) => p.kind === kind).length;
+    const base = kind === 'image' ? t('defaultImageName') : t('defaultProjectName');
+    const project = await newProjectDialog(`${base} ${count + 1}`, kind);
     if (!project) return;
     try {
       await this.repo.insert(project);

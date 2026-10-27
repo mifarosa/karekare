@@ -78,6 +78,7 @@ export class Thumbnails {
         if (key === e.key) continue;
         await ed.store.ensure(visibleCells(ed.project, frame).map((c) => c.cell));
         const ctx = ctx2d(e.canvas);
+        ctx.imageSmoothingEnabled = !ed.project.pixel;
         ctx.imageSmoothingQuality = 'high';
         const s = this.width / ed.project.width;
         ctx.setTransform(s, 0, 0, s, 0, 0);

@@ -1,6 +1,6 @@
 import { uid } from '../model/ids';
 import { LIMITS, clamp, clampInt, newFrame, newLayer } from '../model/project';
-import type { AudioClip, Cell, Frame, Layer, Project, Rect, Reference } from '../model/types';
+import type { AudioClip, Cell, Frame, Layer, Project, ProjectKind, Rect, Reference } from '../model/types';
 
 export const FORMAT = 'karekare';
 export const FORMAT_VERSION = 1;
@@ -20,6 +20,9 @@ export interface ProjectJSON {
   seq?: number;
   id: string;
   name: string;
+  /** Missing in projects saved before drawings existed: an animation. */
+  kind?: ProjectKind;
+  pixel?: boolean;
   width: number;
   height: number;
   fps: number;
@@ -88,6 +91,8 @@ export function toJSON(
     formatVersion: FORMAT_VERSION,
     id: p.id,
     name: p.name,
+    kind: p.kind,
+    pixel: p.pixel,
     width: p.width,
     height: p.height,
     fps: p.fps,
@@ -255,6 +260,8 @@ export async function fromJSON(
   const project: Project = {
     id: safeId(j.id) ?? uid(),
     name: str(j.name, 'Animation', 80),
+    kind: parseKind(j.kind),
+    pixel: j.pixel === true,
     width,
     height,
     fps: clampInt(num(j.fps, 12), LIMITS.minFps, LIMITS.maxFps),
@@ -269,6 +276,10 @@ export async function fromJSON(
     lastLayer: typeof j.lastLayer === 'string' && layerIds.has(j.lastLayer) ? j.lastLayer : null,
   };
   return { project, files, audioFile, missing };
+}
+
+export function parseKind(v: unknown): ProjectKind {
+  return v === 'image' ? 'image' : 'animation';
 }
 
 /** Returns null when there is no reference and undefined when its file is missing. */

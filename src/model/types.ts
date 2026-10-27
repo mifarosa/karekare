@@ -90,9 +90,15 @@ export interface Reference {
   file: string | null;
 }
 
+/** A single drawing, or a frame-by-frame animation. */
+export type ProjectKind = 'image' | 'animation';
+
 export interface Project {
   id: string;
   name: string;
+  kind: ProjectKind;
+  /** Pixel art: hard square pixels, a grid, and exports enlarged without blur. */
+  pixel: boolean;
   width: number;
   height: number;
   fps: number;
@@ -112,6 +118,8 @@ export interface Project {
 export interface ProjectSummary {
   id: string;
   name: string;
+  kind: ProjectKind;
+  pixel: boolean;
   width: number;
   height: number;
   fps: number;

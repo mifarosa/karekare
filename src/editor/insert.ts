@@ -107,8 +107,8 @@ export function photoMenu(anchor: HTMLElement, { ed, placer, stage, onBusy, onBe
         onBeforePlace();
         void placePhoto(ed, placer);
       }),
-      item('images', t('photoAsFrames'), () => void addPhotoFrames(ed, onBusy)),
-      h('p', { class: 'muted small menu-text' }, t('photoAsFramesHint')),
+      ed.isImage ? null : item('images', t('photoAsFrames'), () => void addPhotoFrames(ed, onBusy)),
+      ed.isImage ? null : h('p', { class: 'muted small menu-text' }, t('photoAsFramesHint')),
       h('hr', { class: 'menu-sep' }),
       referenceMenuSection(ed, placer, stage, onBeforePlace),
     ),

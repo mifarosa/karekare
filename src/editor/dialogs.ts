@@ -105,6 +105,8 @@ export function openSettingsDialog(ed: Editor, onAppChange: () => void): void {
     }),
   );
 
+  // Drawings have no frames, so no speed and no onion skin.
+  const image = ed.isImage;
   openDialog({
     title: t('settings'),
     wide: true,
@@ -112,13 +114,13 @@ export function openSettingsDialog(ed: Editor, onAppChange: () => void): void {
       h(
         'div',
         { class: 'settings-group' },
-        h('h3', null, t('projectSettings')),
+        h('h3', null, image ? t('kindImage') : t('projectSettings')),
         h('label', { class: 'field' }, h('span', { class: 'opt-label' }, t('projectName')), name),
-        h('label', { class: 'field' }, h('span', { class: 'opt-label' }, t('fpsTitle')), fps),
+        image ? null : h('label', { class: 'field' }, h('span', { class: 'opt-label' }, t('fpsTitle')), fps),
         h('label', { class: 'field' }, h('span', { class: 'opt-label' }, t('background')), bg),
         h('p', { class: 'muted small' }, t('canvasSizeInfo', { w: p.width, h: p.height })),
       ),
-      onion,
+      ...(image ? [] : [onion]),
       app,
     ],
     actions: [{ label: t('done'), kind: 'primary' }],
