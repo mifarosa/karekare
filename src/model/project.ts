@@ -1,5 +1,5 @@
 import { uid } from './ids';
-import type { Cell, Frame, Layer, Project } from './types';
+import type { Cell, Frame, Layer, Project, ProjectKind } from './types';
 
 export const LIMITS = {
   minSize: 16,
@@ -15,6 +15,8 @@ export interface NewProjectOptions {
   height: number;
   fps: number;
   background: string;
+  kind?: ProjectKind;
+  pixel?: boolean;
 }
 
 export function createProject(opts: NewProjectOptions, layerName = 'Layer 1'): Project {
@@ -23,6 +25,8 @@ export function createProject(opts: NewProjectOptions, layerName = 'Layer 1'): P
   return {
     id: uid(),
     name: opts.name,
+    kind: opts.kind ?? 'animation',
+    pixel: opts.pixel ?? false,
     width: clampInt(opts.width, LIMITS.minSize, LIMITS.maxSize),
     height: clampInt(opts.height, LIMITS.minSize, LIMITS.maxSize),
     fps: clampInt(opts.fps, LIMITS.minFps, LIMITS.maxFps),

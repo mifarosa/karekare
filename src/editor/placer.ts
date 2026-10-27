@@ -89,7 +89,7 @@ export class Placer {
     this.slot = h('div', { class: 'placer-controls' });
     this.bar = h(
       'div',
-      { class: 'placer-bar', hidden: true },
+      { class: 'placer-bar', hidden: true, 'data-overlay': '' },
       this.slot,
       h(
         'div',

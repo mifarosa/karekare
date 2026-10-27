@@ -99,9 +99,11 @@ export class AutoSaver {
     const key = [p.background, ...cells.map(({ cell, layer }) => `${cell.id}:${cell.version}:${layer.opacity}`)].join('|');
     if (key === this.thumbKey) return;
     await ed.store.ensure(cells.map((c) => c.cell));
-    const scale = Math.min(1, THUMB_W / p.width);
+    // Pixel art is enlarged in whole steps so every pixel stays a crisp square.
+    const scale = p.pixel ? Math.max(1, Math.floor(THUMB_W / p.width)) : Math.min(1, THUMB_W / p.width);
     const c = createCanvas(p.width * scale, p.height * scale);
     const ctx = ctx2d(c);
+    ctx.imageSmoothingEnabled = !p.pixel;
     ctx.scale(scale, scale);
     drawFrame(ctx, p, frame, ed.store, { background: true });
     await this.repo.saveThumb(p.id, await canvasToBlob(c, 'image/png'));

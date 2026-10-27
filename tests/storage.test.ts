@@ -63,7 +63,7 @@ describe('ProjectRepo', () => {
 
     const list = await repo.list();
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ id: p.id, name: 'Test', frames: 2, fps: 8 });
+    expect(list[0]).toMatchObject({ id: p.id, name: 'Test', frames: 2, fps: 8, kind: 'animation', pixel: false });
 
     const { project, missing } = await new ProjectRepo(fs).load(p.id);
     expect(missing).toBe(0);
@@ -182,6 +182,29 @@ describe('zip project files', () => {
   it('opens projects without a reference photo', async () => {
     const { project } = await projectFromZip(await projectToZip(sample(), null));
     expect(project.reference).toBeNull();
+  });
+
+  it('keeps the project kind and pixel style', async () => {
+    const p = sample();
+    p.kind = 'image';
+    p.pixel = true;
+    const { project } = await projectFromZip(await projectToZip(p, null));
+    expect(project.kind).toBe('image');
+    expect(project.pixel).toBe(true);
+  });
+
+  it('opens projects from before drawings existed as animations', async () => {
+    const p = sample();
+    const zip = await projectToZip(p, null);
+    const { unzipSync, zipSync, strFromU8, strToU8 } = await import('fflate');
+    const entries = unzipSync(new Uint8Array(await zip.arrayBuffer()));
+    const json = JSON.parse(strFromU8(entries['project.json']));
+    delete json.kind;
+    delete json.pixel;
+    entries['project.json'] = strToU8(JSON.stringify(json));
+    const { project } = await projectFromZip(new Blob([zipSync(entries) as Uint8Array<ArrayBuffer>]));
+    expect(project.kind).toBe('animation');
+    expect(project.pixel).toBe(false);
   });
 
   it('rejects files that are not projects', async () => {

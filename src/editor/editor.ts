@@ -1,4 +1,4 @@
-import { createCanvas, ctx2d } from '../core/canvas';
+import { createCanvas, ctx2d, hardenAlpha } from '../core/canvas';
 import { CellStore } from '../core/cellStore';
 import { Emitter } from '../core/emitter';
 import { History, type Command } from '../core/history';
@@ -16,7 +16,7 @@ import {
   visibleCells,
 } from '../model/project';
 import { clip, union } from '../model/rect';
-import type { AudioClip, Cell, Frame, Layer, Project, Rect, Reference } from '../model/types';
+import type { AudioClip, Cell, Frame, Layer, Project, ProjectKind, Rect, Reference } from '../model/types';
 
 export type ToolId = 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'hand';
 
@@ -48,6 +48,15 @@ export interface OnionSettings {
   /** Red/green tint (keeping detail) instead of the frames' real colors. */
   colored: boolean;
 }
+
+/** Pen and eraser sizes (in pixels) and the grid, for pixel art projects. */
+export interface PixelSettings {
+  brush: number;
+  eraser: number;
+  grid: boolean;
+}
+
+export const MAX_PIXEL_SIZE = 16;
 
 export type ReferenceProps = Partial<Pick<Reference, 'opacity' | 'visible' | 'above'>>;
 
@@ -96,6 +105,7 @@ export interface EditorPrefs {
   eraser: EraserSettings;
   fill: FillSettings;
   onion: OnionSettings;
+  pixel: PixelSettings;
   layerBaseName: string;
 }
 
@@ -118,6 +128,7 @@ export class Editor {
   eraser: EraserSettings;
   fill: FillSettings;
   onion: OnionSettings;
+  pixel: PixelSettings;
   playing = false;
   loop = true;
   /** True while a tool is modifying the live canvas. */
@@ -135,6 +146,7 @@ export class Editor {
     this.eraser = { ...prefs.eraser };
     this.fill = { ...prefs.fill };
     this.onion = { ...prefs.onion };
+    this.pixel = { ...prefs.pixel };
     this.layerBaseName = prefs.layerBaseName;
     this.frameIndex = clampInt(project.lastFrame, 0, project.frames.length - 1);
     const last = project.layers.find((l) => l.id === project.lastLayer);
@@ -159,6 +171,11 @@ export class Editor {
 
   get layerIndex(): number {
     return this.project.layers.findIndex((l) => l.id === this.layerId);
+  }
+
+  /** A single drawing: no timeline, onion skin or playback. */
+  get isImage(): boolean {
+    return this.project.kind === 'image';
   }
 
   get liveReady(): boolean {
@@ -234,7 +251,7 @@ export class Editor {
     add(this.frameIndex);
     const cur = this.frame.cells[this.layerId];
     if (cur && !out.includes(cur)) out.push(cur);
-    if (this.onion.enabled && !this.playing) {
+    if (this.onion.enabled && !this.playing && !this.isImage) {
       // Onion skin shows the current layer only.
       const addOnion = (i: number) => {
         const c = frames[i]?.cells[this.layerId];
@@ -409,7 +426,13 @@ export class Editor {
       } finally {
         ctx.restore();
       }
-      const after = ctx.getImageData(r.x, r.y, r.w, r.h);
+      let after = ctx.getImageData(r.x, r.y, r.w, r.h);
+      if (this.project.pixel) {
+        // Pixel art has no soft edges: text and photos snap to whole pixels.
+        hardenAlpha(after.data);
+        ctx.putImageData(after, r.x, r.y);
+        after = ctx.getImageData(r.x, r.y, r.w, r.h);
+      }
       this.liveChanged(r);
       this.pushPatch(r, before, after);
       return true;
@@ -734,6 +757,23 @@ export class Editor {
     if (props.above !== undefined) r.above = props.above;
     this.events.emit('reference');
     this.events.emit('dirty');
+  }
+
+  /**
+   * Turns a drawing into an animation or back. A drawing has a single
+   * frame, so only one-frame animations can become drawings.
+   */
+  setKind(kind: ProjectKind): boolean {
+    const p = this.project;
+    if (p.kind === kind) return true;
+    if (kind === 'image' && p.frames.length > 1) return false;
+    if (this.playing) this.setPlaying(false);
+    p.kind = kind;
+    p.modified = Date.now();
+    this.events.emit('project');
+    this.events.emit('onion');
+    this.events.emit('dirty');
+    return true;
   }
 
   setOnion(props: Partial<OnionSettings>): void {

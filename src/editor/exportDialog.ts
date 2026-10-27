@@ -10,6 +10,19 @@ import type { AutoSaver } from './autosave';
 import type { Editor } from './editor';
 import { segmented, toggle } from './toolbar';
 
+/** Pixel art enlargements; normal drawings use percentages. */
+const PIXEL_SCALES = [1, 2, 4, 8, 16, 32];
+const MAX_SIDE = 4096;
+/** Last enlargement picked for pixel art, which needs much bigger factors. */
+let lastPixelScale = 0;
+
+/** Big enough to look sharp when shared (about 512 px), never huge. */
+export function defaultPixelScale(width: number, height: number): number {
+  const side = Math.max(width, height);
+  const fits = PIXEL_SCALES.filter((s) => side * s <= MAX_SIDE);
+  return fits.find((s) => side * s >= 512) ?? fits[fits.length - 1] ?? 1;
+}
+
 const last: ExportOptions = {
   format: 'gif',
   scale: 1,
@@ -20,19 +33,26 @@ const last: ExportOptions = {
 };
 
 export function openExportDialog(ed: Editor, saver: AutoSaver, audio: AudioEngine): void {
+  const p = ed.project;
   const opts: ExportOptions = { ...last };
   if (opts.format === 'video' && !videoSupported()) opts.format = 'gif';
-  const p = ed.project;
+  // A drawing is saved as one PNG.
+  if (ed.isImage) opts.format = 'png';
+  const pixelScales = PIXEL_SCALES.filter((s) => Math.max(p.width, p.height) * s <= MAX_SIDE);
+  if (p.pixel) opts.scale = pixelScales.includes(lastPixelScale) ? lastPixelScale : defaultPixelScale(p.width, p.height);
+  else if (!['0.5', '1', '2'].includes(String(opts.scale))) opts.scale = 1;
 
   const body = h('div', { class: 'export' });
   const footer = h('div', { class: 'dialog-actions' });
-  const d = openDialog({ title: t('exportTitle'), body: [body, footer], wide: true });
+  const d = openDialog({ title: ed.isImage ? t('saveImage') : t('exportTitle'), body: [body, footer], wide: true });
 
-  const formats: { id: ExportFormat; title: string; desc: string; disabled?: boolean }[] = [
-    { id: 'gif', title: 'GIF', desc: t('exportGifDesc') },
-    { id: 'video', title: 'MP4', desc: videoSupported() ? t('exportVideoDesc') : t('exportVideoUnsupported'), disabled: !videoSupported() },
-    { id: 'png', title: 'PNG', desc: p.frames.length > 1 ? t('exportPngDesc') : t('exportPngSingle') },
-  ];
+  const formats: { id: ExportFormat; title: string; desc: string; disabled?: boolean }[] = ed.isImage
+    ? []
+    : [
+        { id: 'gif', title: 'GIF', desc: t('exportGifDesc') },
+        { id: 'video', title: 'MP4', desc: videoSupported() ? t('exportVideoDesc') : t('exportVideoUnsupported'), disabled: !videoSupported() },
+        { id: 'png', title: 'PNG', desc: p.frames.length > 1 ? t('exportPngDesc') : t('exportPngSingle') },
+      ];
 
   function renderOptions(): void {
     clear(body);
@@ -67,37 +87,40 @@ export function openExportDialog(ed: Editor, saver: AutoSaver, audio: AudioEngin
     }
     if (opts.format === 'video' && p.audio) extra.push(toggle(t('includeSound'), opts.includeAudio, (v) => (opts.includeAudio = v)));
 
-    body.append(
-      cards,
+    const scales = p.pixel
+      ? pixelScales.map((s) => ({ value: String(s), label: `×${s}` }))
+      : [
+          { value: '0.5', label: '50%' },
+          { value: '1', label: '100%' },
+          { value: '2', label: '200%' },
+        ];
+    append(body, [
+      formats.length ? cards : null,
       h(
         'div',
         { class: 'export-row' },
         h('span', { class: 'opt-label' }, t('exportSize')),
-        segmented(
-          [
-            { value: '0.5', label: '50%' },
-            { value: '1', label: '100%' },
-            { value: '2', label: '200%' },
-          ],
-          String(opts.scale),
-          (v) => {
-            opts.scale = Number(v);
-            renderOptions();
-          },
-        ),
+        segmented(scales, String(opts.scale), (v) => {
+          opts.scale = Number(v);
+          if (p.pixel) lastPixelScale = opts.scale;
+          renderOptions();
+        }),
         h('span', { class: 'muted' }, `${w} × ${hgt}`),
       ),
+      p.pixel && opts.scale > 1 ? h('p', { class: 'muted small' }, t('pixelScaleHint', { n: opts.scale })) : null,
       ...extra.map((e) => h('div', { class: 'export-row' }, e)),
       h('p', { class: 'muted small' }, t('noWatermark')),
-    );
+    ]);
     footer.append(
       h('button', { class: 'btn', onclick: () => d.close() }, t('cancel')),
-      h('button', { class: 'btn btn-primary', onclick: () => void start() }, icon('download', 18), t('exportStart')),
+      h('button', { class: 'btn btn-primary', onclick: () => void start() }, icon('download', 18), ed.isImage ? t('saveImage') : t('exportStart')),
     );
   }
 
   async function start(): Promise<void> {
-    Object.assign(last, opts);
+    // Pixel art enlargements are remembered separately, and a drawing's
+    // forced PNG should not change what animations default to.
+    Object.assign(last, { ...opts, scale: p.pixel ? last.scale : opts.scale, format: ed.isImage ? last.format : opts.format });
     clear(body);
     clear(footer);
     const bar = h('div', { class: 'progress-fill' });

@@ -38,6 +38,7 @@ export async function buildJob(project: Project, opts: ExportOptions, audio: Aud
     width: project.width,
     height: project.height,
     scale: opts.scale,
+    pixelated: project.pixel,
     fps: project.fps,
     background: opts.format === 'png' && opts.transparent ? null : project.background,
     frames,

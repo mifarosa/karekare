@@ -2,6 +2,7 @@ import type { InputPoint } from '../core/brush';
 import { brushDef, createStroke, type BrushStroke } from '../core/brushes';
 import { createCanvas, ctx2d, parseColor, toHex } from '../core/canvas';
 import { expandRegion, floodFill, paintRegion } from '../core/floodFill';
+import { PixelStroke } from '../core/pixelStroke';
 import { drawFrame } from '../core/render';
 import { union } from '../model/rect';
 import type { Rect } from '../model/types';
@@ -64,23 +65,28 @@ export class StrokeTool implements Tool {
 
     const seed = (Math.random() * 0xffffffff) >>> 0;
     const b = this.ed.brush;
-    this.stroke = createStroke(
-      this.erase
-        ? { kind: 'eraser', color: '#000', size: this.ed.eraser.size, opacity: 1, smoothing: 0.3, pressure: false, width, height, seed }
-        : {
-            kind: b.kind,
-            color: this.ed.color,
-            size: b.size,
-            opacity: b.opacity,
-            smoothing: b.smoothing,
-            pressure: p.pointerType === 'pen',
-            width,
-            height,
-            seed,
-          },
-      this.ed.liveCtx,
-    );
-    this.continuous = !this.erase && !!brushDef(b.kind).continuous;
+    const px = this.ed.pixel;
+    if (this.ed.project.pixel) {
+      this.stroke = new PixelStroke(this.erase ? px.eraser : px.brush, this.erase ? null : this.ed.color, width, height);
+    } else {
+      this.stroke = createStroke(
+        this.erase
+          ? { kind: 'eraser', color: '#000', size: this.ed.eraser.size, opacity: 1, smoothing: 0.3, pressure: false, width, height, seed }
+          : {
+              kind: b.kind,
+              color: this.ed.color,
+              size: b.size,
+              opacity: b.opacity,
+              smoothing: b.smoothing,
+              pressure: p.pointerType === 'pen',
+              width,
+              height,
+              seed,
+            },
+        this.ed.liveCtx,
+      );
+    }
+    this.continuous = !this.erase && !this.ed.project.pixel && !!brushDef(b.kind).continuous;
     this.stroke.push(toInput(p));
     this.totalBox = null;
     this.active = true;
@@ -172,7 +178,8 @@ export class FillTool implements Tool {
       const tolerance = (ed.fill.tolerance / 100) * 255;
       let region = floodFill(sample.data, width, height, x, y, tolerance);
       if (!region) return;
-      if (ed.fill.expand > 0) region = expandRegion(region, width, height, ed.fill.expand);
+      // Pixel art keeps hard edges, so the fill never creeps under lines.
+      if (ed.fill.expand > 0 && !ed.project.pixel) region = expandRegion(region, width, height, ed.fill.expand);
       const rect = region.bounds;
       const target = ed.liveCtx.getImageData(rect.x, rect.y, rect.w, rect.h);
       const before = new ImageData(new Uint8ClampedArray(target.data), rect.w, rect.h);

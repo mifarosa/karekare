@@ -1,7 +1,17 @@
 import type { Project, ProjectSummary } from '../model/types';
 import { uid } from '../model/ids';
 import type { FileStore } from './fileStore';
-import { FILE_DIRS, FORMAT, audioFileName, cellFileName, fromJSON, referenceFileName, toJSON, type ProjectJSON } from './serialize';
+import {
+  FILE_DIRS,
+  FORMAT,
+  audioFileName,
+  cellFileName,
+  fromJSON,
+  parseKind,
+  referenceFileName,
+  toJSON,
+  type ProjectJSON,
+} from './serialize';
 
 const ROOT = 'projects';
 const dirOf = (id: string) => `${ROOT}/${id}`;
@@ -29,6 +39,8 @@ export class ProjectRepo {
       out.push({
         id,
         name: j.name,
+        kind: parseKind(j.kind),
+        pixel: j.pixel === true,
         width: j.width,
         height: j.height,
         fps: j.fps,

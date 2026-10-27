@@ -1,4 +1,4 @@
-import { canvasToBlob, createCanvas, ctx2d, releaseCanvas } from '../core/canvas';
+import { canvasToBlob, createCanvas, ctx2d, hardenAlpha, releaseCanvas } from '../core/canvas';
 import { uid } from '../model/ids';
 import { newCell } from '../model/project';
 import { clip } from '../model/rect';
@@ -14,7 +14,7 @@ export const MAX_PHOTO_FRAMES = 300;
  */
 export async function photosToFrames(
   files: Blob[],
-  size: { width: number; height: number },
+  size: { width: number; height: number; pixel?: boolean },
   layerId: string,
   mode: FitMode,
   onProgress: (done: number, total: number) => void,
@@ -33,6 +33,12 @@ export async function photosToFrames(
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(bmp, fit.x - rect.x, fit.y - rect.y, fit.w, fit.h);
       bmp.close();
+      if (size.pixel) {
+        // Pixel art: no half-transparent edge pixels.
+        const data = ctx.getImageData(0, 0, rect.w, rect.h);
+        hardenAlpha(data.data);
+        ctx.putImageData(data, 0, 0);
+      }
       const blob = await canvasToBlob(c, 'image/png');
       releaseCanvas(c);
       const cell = newCell();

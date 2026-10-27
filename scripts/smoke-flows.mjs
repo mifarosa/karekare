@@ -97,7 +97,7 @@ await (await dl).saveAs(zipPath);
 assert(true, 'project zip downloaded');
 
 // Back home and import it as a new project.
-await page.click('.topbar .icon-btn[aria-label="My animations"]');
+await page.click('.topbar .icon-btn[aria-label="My work"]');
 await page.waitForSelector('.home');
 // The project list loads asynchronously; count only once it is there.
 await page.waitForSelector('.project-card');
@@ -112,7 +112,7 @@ assert((await page.locator('.tl-frame').count()) === 3, 'imported project has 3 
 assert((await page.locator('.layer-row').count()) === 2, 'imported project has 2 layers');
 assert((await page.textContent('.tl-frame:nth-child(2) .tl-hold'))?.includes('×3'), 'hold survived the round trip');
 await page.screenshot({ path: `${out}13-imported.png` });
-await page.click('.topbar .icon-btn[aria-label="My animations"]');
+await page.click('.topbar .icon-btn[aria-label="My work"]');
 await page.waitForSelector('.project-card');
 await page.waitForTimeout(300);
 assert((await page.locator('.project-card').count()) === cardsBefore + 1, 'import added a new project');

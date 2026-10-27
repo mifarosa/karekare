@@ -28,6 +28,7 @@ class FrameRenderer {
     this.height = h;
     this.canvas = createCanvas(w, h);
     this.ctx = ctx2d(this.canvas, true);
+    this.ctx.imageSmoothingEnabled = !job.pixelated;
     this.ctx.imageSmoothingQuality = 'high';
   }
 

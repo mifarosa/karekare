@@ -13,6 +13,8 @@
 
 ## Özellikler
 
+- **Resim ya da animasyon**: ana sayfada “Yeni resim” sadece çizim içindir; zaman çizelgesi, oynatma, ses ve hayalet gizlenir, “Resmi kaydet” doğrudan PNG verir. İstenince menüden “Animasyona çevir” ile canlandırılabilir (tek kareli animasyonlar da resme çevrilebilir)
+- **Piksel sanatı**: 16×16’dan 128×128’e küçük tuvaller, her pikseli tam boyar kare piksel kalemi (1–16 px, 1 piksellik çizgilerde “L” köşeler otomatik temizlenir), keskin kenarlı kova, yazı ve fotoğraf; piksel ızgarası; kaydederken ×2…×32 bulanıklaşmadan büyütme. Hem resim hem animasyon için seçilebilir
 - **16 fırça**: kalem, kurşun kalem, keçeli, boya fırçası, fosforlu kalem, pastel boya, tebeşir, neon, kaligrafi, sprey boya (basılı tutunca birikir), gökkuşağı, noktalı, yıldızlar, kalpler, baloncuklar, konfeti. Hepsi kalem basıncına duyarlı; önizlemeli fırça seçicisi var ve her fırça kendi boyutunu hatırlıyor. Ayrıca silgi, renk seçici, ayarlanabilir yumuşatma
 - **Boya kovası**: hassasiyet ayarı, “çizgi altına taşır” seçeneği (kenarlarda boşluk kalmaz) ve “tüm katmanlara bak” ile ayrı katmandaki çizgilere göre boyama
 - **Sınırsız katman ve kare**: gizle/göster, kilitle, saydamlık, çoğalt, sırala
@@ -36,7 +38,7 @@
 | Önceki / sonraki kare | `←` `→` |
 | Yeni kare / kareyi çoğalt | `N` / `D` |
 | Oynat / duraklat | `Enter` |
-| Fırça boyutu | `[` `]` |
+| Fırça boyutu (piksel sanatında kalem boyutu) | `[` `]` |
 | Onion skin | `O` |
 | Referans fotoğrafı gizle/göster | `R` |
 | Yazı ekle | `T` |
@@ -74,6 +76,7 @@ node scripts/smoke-offline.mjs  # internetsiz açılış ve kayıt
 node scripts/smoke-place.mjs    # yazı/fotoğraf yerleştirme, fotoğrafları kare olarak ekleme
 node scripts/smoke-brushes.mjs  # 16 fırçanın hepsiyle çizim, seçici, fırça başına boyut
 node scripts/smoke-reference.mjs  # referans fotoğraf, fotoğraf karelerinin hayaleti
+node scripts/smoke-drawing.mjs  # resim modu, piksel sanatı (kalem, kova, yazı, ızgara, büyütmeli dışa aktarma)
 node scripts/demo.mjs           # docs/screenshot.png ve docs/demo.gif üretir
 ```
 
@@ -121,6 +124,6 @@ Kare Kare ücretsiz ve reklamsız kalacak. Beğendiysen [bana bir kahve ısmarla
 
 Kare Kare is a frame-by-frame animation PWA built for kids, students and anyone who wants a FlipaClip-style tool without layer limits, watermarks or ads. It runs entirely in the browser, installs to the home screen and works offline.
 
-**Features:** 16 pressure-sensitive brushes (pen, pencil, marker, paintbrush, highlighter, crayon, chalk, neon, calligraphy, spray, rainbow, dots, stars, hearts, bubbles, confetti), eraser, fill bucket with tolerance and gap-hiding, color picker, unlimited layers and frames, onion skin that keeps photo detail (red/green tint or real colors), a reference photo to trace over (shown on every frame, never exported), frame holds, drag-to-reorder timeline, adjustable FPS, a sound track with waveform and scrubbing for lip-sync, GIF / MP4 / PNG-sequence export with no watermark, autosave to the Origin Private File System and portable `.zip` project files. Palm rejection once a stylus is detected, two-finger tap to undo, three-finger tap to redo, pinch to zoom, left-handed layout, Turkish and English UI.
+**Features:** single drawings or animations (a drawing hides the timeline and saves straight to PNG, and can become an animation later), pixel art projects (16×16 to 128×128 canvases, a hard-edged pixel pen with pixel-perfect one-pixel lines, a pixel grid, and exports enlarged ×2–×32 without blur), 16 pressure-sensitive brushes (pen, pencil, marker, paintbrush, highlighter, crayon, chalk, neon, calligraphy, spray, rainbow, dots, stars, hearts, bubbles, confetti), eraser, fill bucket with tolerance and gap-hiding, color picker, unlimited layers and frames, onion skin that keeps photo detail (red/green tint or real colors), a reference photo to trace over (shown on every frame, never exported), frame holds, drag-to-reorder timeline, adjustable FPS, a sound track with waveform and scrubbing for lip-sync, GIF / MP4 / PNG-sequence export with no watermark, autosave to the Origin Private File System and portable `.zip` project files. Palm rejection once a stylus is detected, two-finger tap to undo, three-finger tap to redo, pinch to zoom, left-handed layout, Turkish and English UI.
 
 Run `npm install && npm run dev` to start developing; see the Turkish sections above for scripts, architecture and deployment (GitHub Pages via Actions).
